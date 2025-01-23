@@ -2,5 +2,4 @@
 
 Requeriments:
 - Python 3.x
-- pip install tkinter
-- pip install pyyaml
+- pip install tk pyyaml stix2
