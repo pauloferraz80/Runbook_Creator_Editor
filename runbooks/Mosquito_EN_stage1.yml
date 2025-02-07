@@ -1,0 +1,537 @@
+title: Mosquito Win32 Backdoor
+threat_id: THR-0017-2739-5252
+creation_date: '2024-09-26'
+update_date: '2025-02-06'
+type: Malware
+domain: Enterprise
+platforms:
+- Windows
+description: 'Mosquito is a Win32 backdoor that has been used by Turla. Mosquito is
+  made up of three parts: the installer, the launcher, and the backdoor.'
+references:
+- ref_id: REF-0017-2739-5256
+  type: Report
+  title: Diplomats in Eastern Europe bitten by a Turla mosquito
+  authors:
+  - ESET, spol. s.r.o.
+  date: 2018-01
+  link: https://web-assets.esetstatic.com/wls/2018/01/ESET_Turla_Mosquito.pdf
+  notes: []
+- ref_id: REF-0017-2739-5639
+  type: Webpage
+  title: Mosquito
+  authors:
+  - MITRE
+  date: '2024-04-11'
+  link: https://attack.mitre.org/software/S0256/
+  notes: []
+TTPs:
+- ttp_id: TTP-0017-2739-5258
+  tactic: TA0002
+  technique: T1204.002
+  procedure: Once the user has downloaded and launched the fake Flash installer, the
+    compromise process starts.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 9. Data exfiltration via get.adobe.com URLs
+  ttp_chain:
+  - TTP-0017-2739-5978
+  detection_rules: []
+- ttp_id: TTP-0017-2739-5978
+  tactic: TA0005
+  technique: T1027
+  procedure: In recent versions, the installer is always obfuscated with what seems
+    to be a custom crypter. Firstly, the crypter makes heavy use of opaque predicates
+    along with arithmetic operations. For example, the obfuscated function will compute
+    a number from hardcoded values and then check if this number is greater than another
+    hardcoded value. Thus, at each execution the control flow will be the same, but
+    emulation is required to determine which path is correct. Therefore, the code
+    becomes far more complex to analyze for both malware researchers and automated
+    algorithms in security software. This may slow down emulation so much that the
+    object won’t be scanned, due to time constraints – and hence software known or
+    shown to be malicious (if not obfuscated) won’t be detected.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 12. Crypter. Installer
+  ttp_chain:
+  - TTP-0017-2740-3192
+  detection_rules: []
+- ttp_id: TTP-0017-2740-3192
+  tactic: TA0005
+  technique: T1497.001
+  procedure: Secondly, after the first layer is de-obfuscated, a call to the Win32
+    API SetupDiGetClassDevs (0,0,0,0xFFFFFFFF) is performed, and the crypter then
+    checks whether the return value equals 0xE000021A. This function is generally
+    used to request information about the devices of the system. However, this specific
+    Flags value (0xFFFFFFFF) is not documented, but according to our tests, the return
+    value is always 0xE000021A on Windows 7 and Windows 10 machines. We believe this
+    API call and the following check are used to bypass sandboxes and emulators that
+    do not implement it correctly.
+  secondary_techniques:
+  - T1106
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 13. Crypter. Installer
+  ttp_chain:
+  - TTP-0017-2740-3422
+  detection_rules: []
+- ttp_id: TTP-0017-2740-3422
+  tactic: TA0005
+  technique: T1620
+  procedure: Thirdly, the real code is divided into several chunks that are decrypted,
+    using a custom function, and re-ordered at run time to build a PE in memory. It
+    is then executed in-place by the crypter’s PE loader function.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 13. Crypter. Installer
+  ttp_chain:
+  - TTP-0017-2740-3554
+  - TTP-0017-2740-3996
+  - TTP-0017-2744-5189
+  detection_rules: []
+- ttp_id: TTP-0017-2740-3554
+  tactic: TA0005
+  technique: T1036.005
+  procedure: 'Once decrypted, the installer searches the %APPDATA% subtree and drops
+    two files in the deepest folder it finds. When searching for this folder, it avoids
+    any folder that contains AVAST in its name. It then uses the filename of one of
+    the non-hidden files in this folder, truncated at the extension, as the base filename
+    for the files it will drop. If all the files in the directory are hidden, or the
+    directory is empty, it takes the name of a DLL from %WINDIR%\System32. The loader
+    it drops will have a .tlb extension and the main backdoor a .pdb extension.
+
+    Interestingly, it does not use WriteFile to drop these two DLLs. Instead, it creates
+    a file, maps it in memory and calls memmove to copy data. It is probably designed
+    to avoid some sandboxes and security products hooks on WriteFile.'
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 13. Installation. Installer
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2740-3996
+  tactic: TA0007
+  technique: T1518.001
+  procedure: If the antivirus display name, retrieved using Windows Management Instrumentation
+    (WMI), is “Total Security”.
+  secondary_techniques:
+  - T1047
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 14. Installation. Installer
+  ttp_chain:
+  - TTP-0017-2740-4665
+  - TTP-0017-2740-5434
+  detection_rules: []
+- ttp_id: TTP-0017-2740-4665
+  tactic: TA0003
+  technique: T1547.001
+  procedure: It establishes persistence by using a Run registry key. If the antivirus
+    display name is “Total Security”, it adds rundll32.exe [backdoor_path], StartRoutine
+    in HKCU\Software\Run\auto_update.
+  secondary_techniques:
+  - T1218.011
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 14. Installation. Installer
+  ttp_chain:
+  - TTP-0017-2765-8882
+  detection_rules: []
+- ttp_id: TTP-0017-2740-5434
+  tactic: TA0003
+  technique: T1546.015
+  procedure: "It will replace the registry entry under HKCR\\CLSID\\{d9144dcd-e998-4eca-ab\
+    \ 6a-dcd83ccba16d}\\InprocServer32 or HKCR\\CLSID\\{08244ee6-92f0-47f2-9fc9-929ba\
+    \ a2e7235}\\InprocServer32 with the path to the loader. These CLSIDs correspond\
+    \ respectively to EhStorShell.dll and to ntshrui.dll. These DLLs are launched\
+    \ legitimately by a lot of processes, including explorer.exe, the main windows\
+    \ GUI. Thus, the loader will be called each time explorer.exe is started. Finally,\
+    \ it adds an entry in the registry to store the path to the original hijacked\
+    \ DLL and to the main backdoor, as shown in the following example.\n// Path to\
+    \ the loader\nHKCR\\CLSID\\{d9144dcd-e998-4eca-ab6a-dcd83ccba16d}\\ InprocServer32\
+    \ \n> C:\\Users\\Administrator\\AppData\\Roaming\\Adobe\\Acrobat\\9.0\\ AdobeSysFnt09.tlb\n\
+    // the name of the above replaced dll\nHKCU\\Software\\Microsoft\\Windows\\OneDriveUpdate\
+    \ explorer.exe\n> %SystemRoot%\\system32\\EhStorShell.dll;{d9144dcd-e998-4eca-ab6a-dcd83ccba16d};new\n\
+    // Path to the main backdoor\nHKCU\\Software\\Microsoft\\Windows\\OneDriveUpdate\
+    \ (Default)\n> C:\\Users\\Administrator\\AppData\\Roaming\\Adobe\\Acrobat\\9.0\\\
+    AdobeSysFnt09.pdb"
+  secondary_techniques:
+  - T1112
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 14. Instalation. Installer
+  ttp_chain:
+  - TTP-0017-2744-6446
+  detection_rules: []
+- ttp_id: TTP-0017-2744-5189
+  tactic: TA0003
+  technique: T1136.001
+  procedure: The installer creates an administrative account HelpAssistant (or HelpAsistant
+    in some samples) with the password sysQ!123.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 14. Instalation. Installer
+  ttp_chain:
+  - TTP-0017-2744-5342
+  detection_rules: []
+- ttp_id: TTP-0017-2744-5342
+  tactic: TA0004
+  technique: T1134.001
+  procedure: The LocalAccountToken FilterPolicy is set to 1, allowing remote administrative
+    actions.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 14. Instalation. Installer
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2744-6446
+  tactic: TA0005
+  technique: T1574.001
+  procedure: "The launcher, named DebugParser.dll internally, is called when the hijacked\
+    \ COM object is loaded. It is responsible for launching the main backdoor and\
+    \ for loading the hijacked COM object. The simplified pseudo-code of this component\
+    \ is provided below.\nif (GetModuleFileNameW != “explorer.exe”) {\n\tCreateMutexW(“slma”)\n\
+    \tCreateProcess(“rundll32 (from HKCU\\Software\\Microsoft\\Windows\\\n\tOneDriveUpdate\
+    \ @=) StartRoutine”)\n}\n//Load hijacked library\nLoadLibraryW (from HKCU\\Software\\\
+    Microsoft\\Windows\\OneDriveUpdate “explorer.exe”=)"
+  secondary_techniques:
+  - T1218.011
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 15. DebugParser. Launcher
+  ttp_chain:
+  - TTP-0017-2765-8882
+  detection_rules: []
+- ttp_id: TTP-0017-2765-8882
+  tactic: TA0005
+  technique: T1070.004
+  procedure: Firstly, the CommanderDLL module deletes the dropper (the fake Flash
+    installer) file. The path is received from the dropper via a named pipe called
+    \\.\pipe\namedpipe.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 18. Setup. Commander. Main backdoor
+  ttp_chain:
+  - TTP-0017-2765-9210
+  detection_rules: []
+- ttp_id: TTP-0017-2765-9210
+  tactic: TA0005
+  technique: T1027.011
+  procedure: 'Secondly, it sets up some internal structures and stores configuration
+    values in the registry. Table 1 describes the different registry values stored
+    under HKCU\Software\Microsoft\[dllname].
+
+    All the registry values, except the layout entry, are encrypted using a custom
+    algorithm.'
+  secondary_techniques:
+  - T1027.013
+  related_ttps:
+  - TTP-0017-2769-9435
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 18. Setup. Commander. Main backdoor
+  ttp_chain:
+  - TTP-0017-2769-9896
+  detection_rules: []
+- ttp_id: TTP-0017-2769-9435
+  tactic: TA0011
+  technique: T1573.001
+  procedure: This backdoor relies on a custom encryption algorithm. Each byte of the
+    plaintext is XORed with a stream generated by a function that looks similar to
+    the Blum Blum Shub algorithm [11]. To encrypt or decrypt, a key and a modulus
+    are passed to the encryption function. Different keys and moduli are used in the
+    different samples. Some are hardcoded while others are generated during execution.
+    Table 2 describes the different keys and moduli used by this malware.
+  secondary_techniques: []
+  related_ttps:
+  - TTP-0017-2765-9210
+  - TTP-0017-2769-9896
+  - TTP-0017-2770-0651
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 19. Encryption. Commander. Main backdoor
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2769-9896
+  tactic: TA0011
+  technique: T1102.003
+  procedure: Third, an additional C&C server address is downloaded from a document
+    hosted on Google Docs (https://docs.google[.]com/uc?authuser=0&id=0B_wY-Tu90pbjTDllRENWNkNma0k&export=download).
+    It is also encrypted using the same algorithm.
+  secondary_techniques:
+  - T1573.001
+  - T1071.001
+  related_ttps:
+  - TTP-0017-2769-9435
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 18. Setup. Commander. Main backdoor
+  ttp_chain:
+  - TTP-0017-2770-0651
+  detection_rules: []
+- ttp_id: TTP-0017-2770-0651
+  tactic: TA0011
+  technique: T1071.001
+  procedure: "The requests to the C&C server always use the same URL scheme: https://[C&C\
+    \ server domain]/scripts/m/query.php?id=[base64(encrypted data)].\nThe user-agent\
+    \ is hardcoded in the samples and cannot be changed:\nMozilla/5.0 (Windows NT\
+    \ 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/ 41.0.2228.0 Safari/537.36\
+    \ \nThis is the default value used by Google Chrome 41. The structure of the id\
+    \ parameter is described in Figure 20 of the referenced report.\nThe previous\
+    \ example is the case for which the id GET parameter contains the Data structure.\
+    \ However, data can also be put inside a cookie (with a null name) or in a POST\
+    \ request. Figure 21 of the referenced report describes the various possibilities.\n\
+    In all cases, the encryption key is the first DWORD of the URL id structure. This\
+    \ key, in combination with the modulus 0x7DFDC101, can decrypt the URL id structure,\
+    \ the POST data and the cookie value. Then, the payload of the data structure\
+    \ is decrypted."
+  secondary_techniques:
+  - T1132.001
+  - T1573.001
+  related_ttps:
+  - TTP-0017-2769-9435
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Pages 20,21. C&C server communications and backdoor commands. Commander (main
+    backdoor)
+  ttp_chain:
+  - TTP-0017-2770-1458
+  - TTP-0017-2770-1785
+  - TTP-0017-2770-1793
+  - TTP-0017-2770-1875
+  detection_rules: []
+- ttp_id: TTP-0017-2770-1458
+  tactic: TA0007
+  technique: T1016
+  procedure: The initial request contains general information about the compromised
+    machine, such as the result of the command 'ipconfig'.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 21. C&C server communications and backdoor commands. Commander (main backdoor)
+  ttp_chain:
+  - TTP-0017-2770-1958
+  detection_rules: []
+- ttp_id: TTP-0017-2770-1785
+  tactic: TA0007
+  technique: T1082
+  procedure: The initial request contains general information about the compromised
+    machine, such as the result of the command 'set'.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 21. C&C server communications and backdoor commands. Commander (main backdoor)
+  ttp_chain:
+  - TTP-0017-2770-1958
+  detection_rules: []
+- ttp_id: TTP-0017-2770-1793
+  tactic: TA0007
+  technique: T1033
+  procedure: The initial request contains general information about the compromised
+    machine, such as the result of the command 'whoami'.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 21. C&C server communications and backdoor commands. Commander (main backdoor)
+  ttp_chain:
+  - TTP-0017-2770-1958
+  detection_rules: []
+- ttp_id: TTP-0017-2770-1875
+  tactic: TA0007
+  technique: T1057
+  procedure: The initial request contains general information about the compromised
+    machine, such as the result of the command 'tasklist'.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 21. C&C server communications and backdoor commands. Commander (main backdoor)
+  ttp_chain:
+  - TTP-0017-2770-1958
+  detection_rules: []
+- ttp_id: TTP-0017-2770-1958
+  tactic: TA0011
+  technique: T1071.001
+  procedure: 'Then, the C&C server replies with one of several batches of instructions
+    with commands. The structure of this reply is described in Figure 22 of the referenced
+    report.
+
+    The backdoor can execute certain predefined actions hardcoded in the binary. Table
+    3 is a summary of the available commands.'
+  secondary_techniques: []
+  related_ttps:
+  - TTP-0017-2770-4412
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 21. C&C server communications and backdoor commands. Commander (main backdoor)
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2770-4412
+  tactic: TA0011
+  technique: T1573.001
+  procedure: The packet is fully encrypted (except the first four bytes), with the
+    same algorithm, derived from Blum Blum Shub, described in section 4.3 using the
+    first DWORD for the key and 0x7DFDC101 for the modulus. Each batch of instructions
+    is encrypted separately using 0x3EB13 for the key and 0x7DFDC101 for the modulus.
+  secondary_techniques: []
+  related_ttps:
+  - TTP-0017-2770-1958
+  references:
+  - REF-0017-2739-5256
+  notes: []
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2770-5684
+  tactic: TA0011
+  technique: T1105
+  procedure: 'Command ID: 0x3001.
+
+    Description: Download file to the compromised machine.'
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - "Page 22. Table 3 - Description of the backdoor commands. \nC&C server communications\
+    \ and backdoor commands. Commander (main backdoor)"
+  ttp_chain:
+  - TTP-0017-2771-8516
+  detection_rules: []
+- ttp_id: TTP-0017-2771-8516
+  tactic: TA0002
+  technique: T1106
+  procedure: 'Command ID: 0x3001.
+
+    If there is .dll or .exe in the filename, run it using LoadLibrary or CreateProcess.'
+  secondary_techniques: []
+  related_ttps:
+  - TTP-0017-2770-5684
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - "Page 22. Table 3 - Description of the backdoor commands. \nC&C server communications\
+    \ and backdoor commands. Commander (main backdoor)"
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2771-8918
+  tactic: TA0005
+  technique: T1070.004
+  procedure: 'Command ID: 0x3003.
+
+    Description: Delete a file using DeleteFileW.'
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - "Page 22. Table 3 - Description of the backdoor commands. \nC&C server communications\
+    \ and backdoor commands. Commander (main backdoor)"
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2771-9069
+  tactic: TA0010
+  technique: T1041
+  procedure: 'Command ID: 0x3004.
+
+    Description: Exfiltrate a file (max size sent = 104,857,600 bytes).'
+  secondary_techniques:
+  - T1030
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - "Page 22. Table 3 - Description of the backdoor commands. \nC&C server communications\
+    \ and backdoor commands. Commander (main backdoor)"
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2771-9252
+  tactic: TA0005
+  technique: T1027.011
+  procedure: 'Command ID: 0x3005 or 0x0007 or 0x0008.
+
+    Description: Store data to the registry Flags. The size of data should be ≤ 240
+    bytes.'
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - "Page 22. Table 3 - Description of the backdoor commands. \nC&C server communications\
+    \ and backdoor commands. Commander (main backdoor)"
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2771-9368
+  tactic: TA0011
+  technique: T1059.003
+  procedure: 'Command ID: 0x3006.
+
+    Description: Execute cmd.exe /c [command]. The result is read using a pipe and
+    sent back to the C&C.'
+  secondary_techniques:
+  - T1559
+  - T1041
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - "Page 22. Table 3 - Description of the backdoor commands. \nC&C server communications\
+    \ and backdoor commands. Commander (main backdoor)"
+  ttp_chain: []
+  detection_rules: []
+- ttp_id: TTP-0017-2791-9294
+  tactic: TA0002
+  technique: T1059.001
+  procedure: In some of the samples the backdoor is also able to launch PowerShell
+    scripts.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-2739-5256
+  notes:
+  - Page 22. C&C server communications and backdoor commands. Commander (main backdoor)
+  ttp_chain: []
+  detection_rules: []
+related_threats: []
+notes: []
