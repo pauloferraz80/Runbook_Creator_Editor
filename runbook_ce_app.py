@@ -10,19 +10,23 @@ from mitre_utils import *
 # pip install tkinter
 
 ## TODO:
+# - Corrigir: Ao apaar uma TTP, ala continua aparencedo na Chain (talvez no Related também)
+# - Corrigir: Falta barra de rolagem no listbox da escolha de TTPs na janela Incluir TTP Chain
+# - Corrigir: Falta na janela de inclusão e edição das Covered Techniques das regras a visualização do nome da técnica.
+# - Melhoria: Colorir na listbox o id selecionado que tem seus dados exibidos ao lado, pois a cor da seleção some qando perde o foco.
 # - Melhoria: mostrar o nome do arquivo aberto. Pode ser no titulo da janela.
 # - Melhoria: Guardar o nome e path do arquivo salvo e diferenciar Save e Save As
 # - Ideia: Em cada campo de Tática/Técnica colocar um botão Detalhe que abre uma janela com o detalhamento da tatica/tecnica consultado na base
 # - Ideia: Inclir botão Salvar e Exportar YAML abaixo de cada Estágio. (Vai misturar os arquivos .yml, a menos que save em um diretporio diferente)
 # - Melhoria: colocar try/except nas atualizações do objeto _threar nas funçãoes add/edit para não dar erra caso o objeto tenha sido excluído antes de salvar
 # - Ideia: Implementar múltiplas inclusões de autores usando separação de ;
-# - Ideia: Criar um função de testar a regra de detecção (linguagem sparkSQL) em um dataset e retornar o resultado da busca.
-# - Futuro:Antes de Gerar o Runbook, executar uma checagem se campos obrigatórios estão preenchidos (não se é o caso para salvar, mas é bom ter um botão de checagem dos campos)
+# - Ideia: Criar uma função de testar a regra de detecção (linguagem sparkSQL) em um dataset e retornar o resultado da busca. (Acho que não funciona pois precisaria do motor Spark instalado)
+# - Futuro: Antes de Gerar o Runbook, executar uma checagem se campos obrigatórios estão preenchidos (não se é o caso para salvar, mas é bom ter um botão de checagem dos campos)
 
 global _locale
 #Idioma usado na interface gráfica
-#_locale = "pt-BR" 
-_locale = "en-US" 
+_locale = "pt-BR" 
+#_locale = "en-US" 
 
 def app():
     #Definições
@@ -157,7 +161,7 @@ def app():
         #Função para printar os dados
         def print_threat_data():
             #save_threat_fields()
-            print_threat_text_area(_threat, text_area)
+            print_threat_text_area(_threat, text_area, attck_src)
         #Cria janela
         view_window = tk.Toplevel(root)
         view_window.transient(root) # Faz com que a janela seja filha da janela principal
@@ -180,6 +184,59 @@ def app():
         #Execução inicial
         print_threat_data()
     
+    def view_ttps():
+        #Função para printar os dados
+        def print_ttps_data():
+            #save_threat_fields()
+            print_ttps_text_area(_threat, text_area, attck_src)
+        #Cria janela
+        view_window = tk.Toplevel(root)
+        view_window.transient(root) # Faz com que a janela seja filha da janela principal
+        view_window.title("Visuzalizar Dados da TTP")
+        view_window.geometry(f"400x400+{root.winfo_x()+100}+{root.winfo_y()+100}")
+        #Conteúdo
+        content_frame = tk.Frame(view_window)
+        content_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        text_area = tk.Text(content_frame, wrap=tk.WORD, width=20, height=5)
+        text_area.pack(side="left", fill="both", expand=True)
+        text_area.configure(state="disabled")
+        vscrollbar = tk.Scrollbar(content_frame, orient="vertical", command=text_area.yview)
+        vscrollbar.pack(side="right", fill="y")
+        text_area.configure(yscrollcommand=vscrollbar.set)
+        #Botões
+        action_frame = tk.Frame(view_window)
+        action_frame.pack(side="bottom", padx=10, pady=(5,10))
+        tk.Button(action_frame, text="Refresh", command=print_ttps_data).grid(row=0, column=0, padx=10, sticky="e")
+        tk.Button(action_frame, text="Fechar", command=view_window.destroy).grid(row=0, column=1, padx=10, sticky="w")
+        #Execução inicial
+        print_ttps_data()
+
+    def view_rules():
+        #Função para printar os dados
+        def print_rules_data():
+            #save_threat_fields()
+            print_rules_text_area(_threat, text_area, attck_src)
+        #Cria janela
+        view_window = tk.Toplevel(root)
+        view_window.transient(root) # Faz com que a janela seja filha da janela principal
+        view_window.title("Visuzalizar Dados da Detection Rule")
+        view_window.geometry(f"400x400+{root.winfo_x()+100}+{root.winfo_y()+100}")
+        #Conteúdo
+        content_frame = tk.Frame(view_window)
+        content_frame.pack(fill="both", expand=True, padx=10, pady=5)
+        text_area = tk.Text(content_frame, wrap=tk.WORD, width=20, height=5)
+        text_area.pack(side="left", fill="both", expand=True)
+        text_area.configure(state="disabled")
+        vscrollbar = tk.Scrollbar(content_frame, orient="vertical", command=text_area.yview)
+        vscrollbar.pack(side="right", fill="y")
+        text_area.configure(yscrollcommand=vscrollbar.set)
+        #Botões
+        action_frame = tk.Frame(view_window)
+        action_frame.pack(side="bottom", padx=10, pady=(5,10))
+        tk.Button(action_frame, text="Refresh", command=print_rules_data).grid(row=0, column=0, padx=10, sticky="e")
+        tk.Button(action_frame, text="Fechar", command=view_window.destroy).grid(row=0, column=1, padx=10, sticky="w")
+        #Execução inicial
+        print_rules_data()
     def keygen_tool():
         #Função para gerar as chaves
         def write_key(key_type):
@@ -230,7 +287,9 @@ def app():
     filemenu.add_command(label="Sair", command=root.quit)
     menubar.add_cascade(label=t("Arquivo"), menu=filemenu)
     toolmenu = tk.Menu(menubar, tearoff=0)
-    toolmenu.add_command(label="Ver Threat", command=view_threat)
+    toolmenu.add_command(label="Ver Threat completa", command=view_threat)
+    toolmenu.add_command(label="Ver TTPs", command=view_ttps)
+    toolmenu.add_command(label="Ver Regras", command=view_rules)
     toolmenu.add_command(label="Keygen", command=keygen_tool)
     menubar.add_cascade(label=t("Ferramentas"), menu=toolmenu)
     root.config(menu=menubar)
@@ -815,7 +874,7 @@ def app():
 
         #Cria a janela de edição
         edit_window = tk.Toplevel(root)
-        edit_window.geometry(f"450x100{root.winfo_x()+100}+{root.winfo_y()+100}")
+        edit_window.geometry(f"450x150+{root.winfo_x()+100}+{root.winfo_y()+100}")
         edit_window.title("Editar Autor da Referência" + selected_ref_id)
 
         content_frame = tk.Frame(edit_window)
@@ -1866,7 +1925,7 @@ def app():
         #tk.Label(content_frame, text="Nome").grid(row=1, column=0, padx=10, sticky="w")
         #Column1
         ttp_secondary_technique_entry = tk.Entry(content_frame, width=35)
-        ttp_secondary_technique_entry.insert(0, "T0000.000") #Exemplo
+        #ttp_secondary_technique_entry.insert(0, "T") #Exemplo
         ttp_secondary_technique_entry.grid(row=0, column=1, sticky="ew")
         ttp_secondary_technique_entry.bind("<Return>", add)
         ttp_secondary_technique_entry.bind("<KeyRelease>", consulta_nome_ttp)
@@ -2546,7 +2605,7 @@ def app():
 
         content_frame = tk.Frame(add_window)
         content_frame.pack(fill="both", expand=True, padx=20, pady=5)
-        tk.Label(content_frame, text="Técnica de Coberta").pack(side="left", padx=10)
+        tk.Label(content_frame, text="Técnica Coberta").pack(side="left", padx=10)
         rule_coverage_technique_entry = tk.Entry(content_frame)
         rule_coverage_technique_entry.pack(side="left", padx=10, fill="x", expand=True)
         rule_coverage_technique_entry.bind("<Return>", add)
@@ -2912,7 +2971,7 @@ def app():
 
         #Função para excluir rule_coverage_technique
         def delete():
-            if messagebox.askyesno("Excluir", "Deseja excluir esta Técnica de Cobertura da Regra?"):
+            if messagebox.askyesno("Excluir", "Deseja excluir esta Técnica Coberta pela Regra?"):
                 # Atualiza dados da Rule selecionada no objeto _threat
                 idx = _threat.ttps.index(selected_ttp)
                 idx_rule = _threat.ttps[idx].detection_rules.index(selected_rule)
@@ -3358,7 +3417,7 @@ def app():
     rule_query_text.configure(yscrollcommand=rule_query_text_scrollbar.set)
     rule_query_text.bind("<FocusOut>", lambda event: save_rule())
 
-    rule_coverage_techniques_label = tk.Label(rules_right_frame, text="Coverage\nTechniques", justify="left")
+    rule_coverage_techniques_label = tk.Label(rules_right_frame, text="Covered\nTechniques", justify="left")
     rule_coverage_techniques_listbox = tk.Listbox(rules_right_frame, selectmode="single", width=25, height=3)
     rule_coverage_techniques_listbox.bind('<<ListboxSelect>>', lambda event:edit_rule_coverage_technique())
     rule_coverage_techniques_listbox_scrollbar = tk.Scrollbar(rules_right_frame, orient="vertical", command=rule_coverage_techniques_listbox.yview)

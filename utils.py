@@ -215,7 +215,7 @@ def populate_detection_rules(detection_rule_data):
         query = detection_rule_data.get('query', ''),
         notes = detection_rule_data.get('notes', []),
         reference_ttp = detection_rule_data.get('reference_ttp', ''),
-        coverage_techniques = detection_rule_data.get('coverage_techniques', []),
+        coverage_techniques = detection_rule_data.get('covered_techniques', []),
         validation = validation
     )
 
@@ -312,7 +312,7 @@ def extract_detection_rule_data(rule: DetectionRule):
         'sources': rule.sources,
         'language': rule.language,
         'query': rule.query,
-        'coverage_techniques': rule.coverage_techniques,
+        'covered_techniques': rule.coverage_techniques,
         'reference_ttp': rule.reference_ttp,
         'notes': rule.notes,
         'validation': vars(rule.validation) if rule.validation else None
@@ -366,13 +366,13 @@ def print_threat(threat: Threat):
             print(f"         Creation Date: {rule.creation_date}")
             print(f"         Update Date: {rule.update_date}")
             print(f"         Description: {rule.description}")
+            print(f"         Reference TTP: {rule.reference_ttp}")
             print(f"         Platforms: {'; '.join(rule.platforms)}")
+            print(f"         Covered Techniques: {'; '.join(rule.coverage_techniques)}")
             print(f"         Sources: {'; '.join(rule.sources)}")
             print(f"         Language: {rule.language}")
             print(f"         Query: {rule.query}")
-            print(f"         Coverage Techniques: {'; '.join(rule.coverage_techniques)}")
             print(f"         Notes: {'; '.join(rule.notes)}")
-            print(f"         Reference TTP: {rule.reference_ttp}")
             print("         Validation:")
             if rule.validation:
                 print(f"           - Status: {rule.validation.status}")
@@ -382,12 +382,14 @@ def print_threat(threat: Threat):
                 print(f"             Notes: {'; '.join(rule.validation.notes)}")
 
 
-def print_threat_text_area(threat: Threat, text_area: tk.Text):
+def print_threat_text_area(threat: Threat, text_area: tk.Text, attck_src: str):
         """
         Imprime o objeto threat na text area.
 
         Args:
-            threat (Threat): The Threat object.
+            threat (Threat): The Threat object to be printed.
+            text_area (tk.Text): The text area where the threat data will be printed.
+            attck_src (str): The source of the MITRE ATTACK data.
         """
         text_area.configure(state="normal")
         text_area.delete(1.0, tk.END)
@@ -413,10 +415,11 @@ def print_threat_text_area(threat: Threat, text_area: tk.Text):
         text_area.insert(tk.INSERT, "TTPs:\n")
         for ttp in threat.ttps:
             text_area.insert(tk.INSERT, f"  - TTP ID: {ttp.ttp_id}\n")
-            text_area.insert(tk.INSERT, f"     Tactic: {ttp.tactic}\n")
-            text_area.insert(tk.INSERT, f"     Technique: {ttp.technique}\n")
+            text_area.insert(tk.INSERT, f"     Tactic: {ttp.tactic} ({get_tactic_name(attck_src, ttp.tactic)})\n")
+            text_area.insert(tk.INSERT, f"     Technique: {ttp.technique} ({get_technique_name(attck_src, ttp.technique)})\n")
             text_area.insert(tk.INSERT, f"     Procedure: {ttp.procedure}\n")
-            text_area.insert(tk.INSERT, f"     Secondary Techniques: {'; '.join(ttp.secondary_techniques)}\n")
+            #text_area.insert(tk.INSERT, f"     Secondary Techniques: {'; '.join(ttp.secondary_techniques)}\n")
+            text_area.insert(tk.INSERT, f"     Secondary Techniques: {'; '.join([f"{secondary_technique} ({get_technique_name(attck_src, secondary_technique)})" for secondary_technique in ttp.secondary_techniques])}\n")
             text_area.insert(tk.INSERT, f"     Related TTPs: {'; '.join(ttp.related_ttps)}\n")
             text_area.insert(tk.INSERT, f"     References: {'; '.join(ttp.references)}\n")
             text_area.insert(tk.INSERT, f"     Notes: {'; '.join(ttp.notes)}\n")
@@ -426,14 +429,15 @@ def print_threat_text_area(threat: Threat, text_area: tk.Text):
                 text_area.insert(tk.INSERT, f"       - Rule ID: {rule.rule_id}\n")
                 text_area.insert(tk.INSERT, f"         Creation Date: {rule.creation_date}\n")
                 text_area.insert(tk.INSERT, f"         Update Date: {rule.update_date}\n")
+                text_area.insert(tk.INSERT, f"         Reference TTP: {rule.reference_ttp}\n")
                 text_area.insert(tk.INSERT, f"         Description: {rule.description}\n")
                 text_area.insert(tk.INSERT, f"         Platforms: {'; '.join(rule.platforms)}\n")
+                #text_area.insert(tk.INSERT, f"         Covered Techniques: {'; '.join(rule.coverage_techniques)}\n")
+                text_area.insert(tk.INSERT, f"         Covered Techniques: {'; '.join([f"{covered_technique} ({get_technique_name(attck_src, covered_technique)})" for covered_technique in rule.coverage_techniques])}\n")
                 text_area.insert(tk.INSERT, f"         Sources: {'; '.join(rule.sources)}\n")
                 text_area.insert(tk.INSERT, f"         Language: {rule.language}\n")
                 text_area.insert(tk.INSERT, f"         Query: {rule.query}\n")
-                text_area.insert(tk.INSERT, f"         Coverage Techniques: {'; '.join(rule.coverage_techniques)}\n")
                 text_area.insert(tk.INSERT, f"         Notes: {'; '.join(rule.notes)}\n")
-                text_area.insert(tk.INSERT, f"         Reference TTP: {rule.reference_ttp}\n")
                 text_area.insert(tk.INSERT, "         Validation:\n")
                 if rule.validation:
                     text_area.insert(tk.INSERT, f"           - Status: {rule.validation.status}\n")
@@ -443,6 +447,64 @@ def print_threat_text_area(threat: Threat, text_area: tk.Text):
                     text_area.insert(tk.INSERT, f"             Notes: {'; '.join(rule.validation.notes)}\n")
         text_area.configure(state="disabled")
 
+def print_ttps_text_area(threat: Threat, text_area: tk.Text, attck_src: str):
+        """
+        Imprime as ttps do objeto threat na text area (sem as rules).
+
+        Args:
+            threat (Threat): The Threat object to be printed.
+            text_area (tk.Text): The text area where the threat data will be printed.
+            attck_src (str): The source of the MITRE ATTACK data.
+        """
+        text_area.configure(state="normal")
+        text_area.delete(1.0, tk.END)
+        for ttp in threat.ttps:
+            text_area.insert(tk.INSERT, f"- TTP ID: {ttp.ttp_id}\n")
+            text_area.insert(tk.INSERT, f"  Tactic: {ttp.tactic} ({get_tactic_name(attck_src, ttp.tactic)})\n")
+            text_area.insert(tk.INSERT, f"  Technique: {ttp.technique} ({get_technique_name(attck_src, ttp.technique)})\n")
+            text_area.insert(tk.INSERT, f"  Procedure: {ttp.procedure}\n")
+            #text_area.insert(tk.INSERT, f"  Secondary Techniques: {'; '.join(ttp.secondary_techniques)}\n")
+            text_area.insert(tk.INSERT, f"  Secondary Techniques: {'; '.join([f"{secondary_technique} ({get_technique_name(attck_src, secondary_technique)})" for secondary_technique in ttp.secondary_techniques])}\n")
+            text_area.insert(tk.INSERT, f"  Related TTPs: {'; '.join(ttp.related_ttps)}\n")
+            text_area.insert(tk.INSERT, f"  References: {'; '.join(ttp.references)}\n")
+            text_area.insert(tk.INSERT, f"  Notes: {'; '.join(ttp.notes)}\n")
+            text_area.insert(tk.INSERT, f"  TTP Chain: {'; '.join(ttp.ttp_chain)}\n")
+            text_area.insert(tk.INSERT, f"  Detection Rules: {'; '.join([f"{rule.rule_id}" for rule in ttp.detection_rules])}\n")
+        text_area.configure(state="disabled")
+
+def print_rules_text_area(threat: Threat, text_area: tk.Text, attck_src: str):
+        """
+        Imprime as rules do objeto threat na text area.
+
+        Args:
+            threat (Threat): The Threat object to be printed.
+            text_area (tk.Text): The text area where the threat data will be printed.
+            attck_src (str): The source of the MITRE ATTACK data.
+        """
+        text_area.configure(state="normal")
+        text_area.delete(1.0, tk.END)
+        for ttp in threat.ttps:
+            for rule in ttp.detection_rules:
+                text_area.insert(tk.INSERT, f"- Rule ID: {rule.rule_id}\n")
+                text_area.insert(tk.INSERT, f"  Creation Date: {rule.creation_date}\n")
+                text_area.insert(tk.INSERT, f"  Update Date: {rule.update_date}\n")
+                text_area.insert(tk.INSERT, f"  Reference TTP: {rule.reference_ttp}\n")
+                text_area.insert(tk.INSERT, f"  Description: {rule.description}\n")
+                text_area.insert(tk.INSERT, f"  Platforms: {'; '.join(rule.platforms)}\n")
+                #text_area.insert(tk.INSERT, f"  Covered Techniques: {'; '.join(rule.coverage_techniques)}\n")
+                text_area.insert(tk.INSERT, f"  Covered Techniques: {'; '.join([f"{covered_technique} ({get_technique_name(attck_src, covered_technique)})" for covered_technique in rule.coverage_techniques])}\n")
+                text_area.insert(tk.INSERT, f"  Sources: {'; '.join(rule.sources)}\n")
+                text_area.insert(tk.INSERT, f"  Language: {rule.language}\n")
+                text_area.insert(tk.INSERT, f"  Query: {rule.query}\n")
+                text_area.insert(tk.INSERT, f"  Notes: {'; '.join(rule.notes)}\n")
+                text_area.insert(tk.INSERT, "  Validation:\n")
+                if rule.validation:
+                    text_area.insert(tk.INSERT, f"  - Status: {rule.validation.status}\n")
+                    text_area.insert(tk.INSERT, f"    Update Date: {rule.validation.update_date}\n")
+                    text_area.insert(tk.INSERT, f"    Dataset: {rule.validation.dataset}\n")
+                    text_area.insert(tk.INSERT, f"    References: {'; '.join(rule.validation.references)}\n")
+                    text_area.insert(tk.INSERT, f"    Notes: {'; '.join(rule.validation.notes)}\n")
+        text_area.configure(state="disabled")
 
 def print_selected_ref_listbox(ref_ids_listbox: tk.Listbox, threat: Threat, text_area: tk.Text):
     selection = ref_ids_listbox.curselection()
@@ -539,8 +601,8 @@ def t(text: str) -> str:
         "Arquivo" : "File",
         "Ferramentas" : "Tools",
         #Frames
-        " ESTÁGIO 1 - Mapeamento Ameaça-TTP ": "STAGE 1 - Mapping Threat-TTP",
-        " ESTÁGIO 2 - Mapeamento TTP-Dados ": "STAGE 2 - Mapping TTP-Data",
+        " ESTÁGIO 1 - Mapeamento Ameaça-TTP ": "STAGE 1 - Threat-TTP Mapping",
+        " ESTÁGIO 2 - Mapeamento TTP-Dados ": "STAGE 2 - TTP-Data Mapping",
         " ESTÁGIO 3 - Validação ": "STAGE 3 - Validation",
         " ESTÁGIO 4 - Consolidação dos Resultados ": "STAGE 4 - Results Compilation",
         "Dados da Referência selecionada": "Selected Reference Data",
