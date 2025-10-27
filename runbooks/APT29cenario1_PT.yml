@@ -1,0 +1,2050 @@
+title: APT29 cenário 1
+threat_id: THR-0017-3066-2211
+creation_date: '2024-11-03'
+update_date: '2025-10-23'
+type: APT
+domain: Enterprise
+platforms:
+- Windows
+description: Esta ameaça é um ataque cibernético sofisticado inspirada no modus operandi
+  do grupo APT29. Ela começa com um usuário legítimo executando um arquivo malicioso
+  mascarado como um documento do Word. O payload executado cria uma conexão C2 criptografada,
+  permitindo ao invasor interagir com o sistema, coletar e exfiltrar arquivos. O atacante
+  faz upload de um novo payload com um script PowerShell oculto, elevando privilégios
+  e estabelecendo uma nova conexão C2 via HTTPS. Ferramentas adicionais são para enumeração,
+  limpeza dos rastros do acesso inicial, reconhecimento e persistência, que é garantida
+  através da criação de um serviço e de um payload na pasta de inicialização. Credenciais
+  e dados sensíveis são coletados, incluindo chaves privadas, hashes de senha, capturas
+  de tela, dados da área de transferência do usuário e pressionamentos de teclas.
+  Consultas LDAP são usadas para descobrir vítimas secundárias no domínio, para as
+  quais são realizados uploads de novos payloads via sessão remota do PowerShell,
+  sendo estes executados por meio do utilitário PSExec usando as credenciais roubadas
+  anteriormente. Uma eventual reinicialização do sistema aciona mecanismos de persistência,
+  permitindo ao atacante manter o controle e continuar a coleta de dados sensíveis,
+  enquanto se disfarça como um utilitário legítimo e exfiltra informações compactadas
+  e criptografadas para um compartilhamento WebDAV controlado pelo invasor.
+references:
+- ref_id: REF-0017-3068-4751
+  type: Web page
+  title: MITRE Engenuity ATT&CK Evaluations - APT29
+  authors: []
+  date: '2020'
+  link: https://attackevals.mitre-engenuity.org/enterprise/apt29/
+  notes: []
+- ref_id: REF-0017-3068-4862
+  type: Web page
+  title: APT29
+  authors:
+  - Daniyal Naeem
+  - Matt Brenton
+  - Katie Nickels
+  - Joe Gumke
+  - Liran Ravich
+  date: '2017-05-31'
+  link: https://attack.mitre.org/groups/G0016/
+  notes: []
+- ref_id: REF-0017-3068-5073
+  type: APT29 Cenário 1
+  title: Scenario 1
+  authors:
+  - Michael Butt
+  date: '2020'
+  link: https://github.com/attackevals/ael/tree/main/Enterprise/apt29/Emulation_Plan/Scenario_1
+  notes: []
+- ref_id: REF-0017-3103-4789
+  type: Dataset
+  title: 'APT29 Evals - Open Datasets '
+  authors:
+  - Roberto Rodriguez
+  date: '2020'
+  link: https://github.com/OTRF/detection-hackathon-apt29/tree/master/datasets/day1
+  notes:
+  - Download do arquivo em https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+- ref_id: REF-0017-6044-5046
+  type: Emulation Plan
+  title: APT29 Day 1 (Steps 1 through 10)
+  authors:
+  - Connor Magee
+  date: '2020'
+  link: https://github.com/mitre-attack/attack-arsenal/tree/master/adversary_emulation/APT29/Emulation_Plan/Day%201
+  notes: []
+TTPs:
+- ttp_id: TTP-0017-3068-5003
+  tactic: TA0002
+  technique: T1204.002
+  procedure: Um usuário legítimo clica em um payload executável (tipo screensaver
+    executável) mascarado de documento Word benigno por meio da técnica "Right-to-Left
+    Override" (RTLO) que usa o caractere U+202E no nome do arquivo para invertê-lo.
+  secondary_techniques:
+  - T1036.002
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6044-2942
+  detection_rules:
+  - rule_id: DTR-0017-3103-4080
+    creation_date: '2024-11-07'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um arquivo suspeito com extensão '.scr' e nome
+      contendo 'cod.', indicando uma possível tentativa de utilização da técnica RTLO
+      (Right-to-Left Override) para disfarçar um arquivo executável como um '.doc'.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,Message\nFROM apt29\nWHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND EventID = 1\n    AND LOWER(ParentImage) LIKE \"%explorer.exe\"\n \
+      \   AND LOWER(Image) LIKE '%cod.%'\n    AND LOWER(Image) LIKE '%.scr'"
+    covered_techniques:
+    - T1204.002
+    - T1036.002
+    reference_ttp: TTP-0017-3068-5003
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-19'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6044-2942
+  tactic: TA0011
+  technique: T1573.001
+  procedure: Uma vez executado, o payload cria uma ligação C2 através da porta 1234
+    usando a cifra criptográfica RC4.
+  secondary_techniques:
+  - T1571
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6044-6572
+  detection_rules:
+  - rule_id: DTR-0017-6092-4557
+    creation_date: '2025-10-19'
+    update_date: '2025-10-23'
+    description: Detecta quando um executável suspeito (que contém 'cod.' no nome
+      e possui extensão '.scr') estabelece uma conexão de rede na porta 1234, indicando
+      uma possível atividade de comunicação de comando e controle (C2).
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29\nWHERE Channel\
+      \ = \"Microsoft-Windows-Sysmon/Operational\"\n    AND EventID = 3\n    AND LOWER(DestinationPort)\
+      \ LIKE '1234'\n    AND LOWER(Image) LIKE '%cod.%'\n    AND LOWER(Image) LIKE\
+      \ '%.scr'"
+    covered_techniques:
+    - T1571
+    reference_ttp: TTP-0017-6044-2942
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-19'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6044-6572
+  tactic: TA0002
+  technique: T1059.001
+  procedure: O invasor usa a conexão C2 ativa para lançar os programas interativos
+    cmd.exe e powershell.exe.
+  secondary_techniques:
+  - T1059.003
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6044-6947
+  detection_rules:
+  - rule_id: DTR-0017-6092-7552
+    creation_date: '2025-10-19'
+    update_date: '2025-10-23'
+    description: Detecta quando um processo PowerShell é criado a partir de um processo
+      'cmd.exe' iniciado por um executável suspeito (que contém 'cod.' no nome e possui
+      extensão '.scr'), indicando uma possível cadeia de execução maliciosa para o
+      uso de scripts ou comandos PowerShell.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 a\nINNER JOIN\
+      \ (\n    SELECT ProcessGuid\n    FROM apt29\n    WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND EventID = 1\n        AND LOWER(ParentImage) LIKE '%cod.%'\n  \
+      \      AND LOWER(ParentImage) LIKE '%.scr'\n        AND LOWER(Image) LIKE '%cmd.exe'\n\
+      ) b\nON a.ParentProcessGuid = b.ProcessGuid\nWHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND EventID = 1\n    AND LOWER(Image) LIKE '%powershell.exe'"
+    covered_techniques:
+    - T1059.001
+    reference_ttp: TTP-0017-6044-6572
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-19'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6044-6947
+  tactic: TA0007
+  technique: T1083
+  procedure: O invasor executa um comando de uma linha para pesquisar o sistema de
+    arquivos em busca de documentos e arquivos de mídia, coletando-os.
+  secondary_techniques:
+  - T1005
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6044-7344
+  detection_rules:
+  - rule_id: DTR-0017-6099-4535
+    creation_date: '2025-10-20'
+    update_date: '2025-10-23'
+    description: Detecta quando um processo criado por um executável suspeito (que
+      contém 'cod.' no nome e possui extensão '.scr') executa um script PowerShell
+      que utiliza o cmdlet 'Get-ChildItem', indicando uma possível tentativa de enumeração
+      de diretórios ou coleta de arquivos para exfiltração.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT b.`@timestamp`,b.EventTime,b.ScriptBlockText\nFROM apt29 a\nINNER\
+      \ JOIN (\n  SELECT d.ParentProcessGuid, d.ProcessId, c.ScriptBlockText, c.EventTime,\
+      \ c.`@timestamp`\n  FROM apt29 c\n  INNER JOIN (\n      SELECT ParentProcessGuid,\
+      \ ProcessGuid, ProcessId\n      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n      ) d\n  ON c.ExecutionProcessID = d.ProcessId\n\
+      \  WHERE c.Channel = \"Microsoft-Windows-PowerShell/Operational\"\n        \
+      \  AND c.EventID = 4104\n          AND LOWER(c.ScriptBlockText) LIKE \"%childitem%\"\
+      \n) b\nON a.ProcessGuid = b.ParentProcessGuid\nWHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND a.EventID = 1\n          AND LOWER(a.ParentImage) LIKE '%cod.%'\n\
+      \          AND LOWER(a.ParentImage) LIKE '%.scr'"
+    covered_techniques:
+    - T1083
+    - T1059.001
+    reference_ttp: TTP-0017-6044-6947
+    notes: []
+    validation:
+      status: unchecked
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6044-7344
+  tactic: TA0009
+  technique: T1560.001
+  procedure: O invasor comprime o conteúdo coletado em arquivo único.
+  secondary_techniques:
+  - T1074.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6044-7520
+  detection_rules:
+  - rule_id: DTR-0017-6099-9496
+    creation_date: '2025-10-20'
+    update_date: '2025-10-23'
+    description: Detecta quando um processo criado por um executável malicioso (que
+      contém 'cod.' no nome e possui extensão '.scr') executa um script PowerShell
+      que utiliza o cmdlet 'Compress-Archive', indicando uma possível tentativa de
+      compactação de arquivos para exfiltração.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT b.`@timestamp`,b.EventTime,b.ScriptBlockText\nFROM apt29 a\nINNER\
+      \ JOIN (\n  SELECT d.ParentProcessGuid, d.ProcessId, c.ScriptBlockText, c.EventTime,\
+      \ c.`@timestamp`\n  FROM apt29 c\n  INNER JOIN (\n      SELECT ParentProcessGuid,\
+      \ ProcessGuid, ProcessId\n      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n      ) d\n  ON c.ExecutionProcessID = d.ProcessId\n\
+      \  WHERE c.Channel = \"Microsoft-Windows-PowerShell/Operational\"\n        \
+      \  AND c.EventID = 4104\n          AND LOWER(c.ScriptBlockText) LIKE \"%compress-archive%\"\
+      \n) b\nON a.ProcessGuid = b.ParentProcessGuid\nWHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND a.EventID = 1\n          AND LOWER(a.ParentImage) LIKE '%cod.%'\n\
+      \          AND LOWER(a.ParentImage) LIKE '%.scr'"
+    covered_techniques:
+    - T1560.001
+    - T1059.001
+    reference_ttp: TTP-0017-6044-7344
+    notes: []
+    validation:
+      status: failed
+      update_date: '2025-10-23'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+  - rule_id: DTR-0017-6124-7922
+    creation_date: '2025-10-23'
+    update_date: '2025-10-23'
+    description: suspeito (que contém 'cod.' no nome e possui extensão '.scr'), indicando
+      uma possível atividade de compactação ou descompactação de arquivos.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 d\nINNER JOIN\
+      \ (\n    SELECT b.ProcessGuid\n    FROM apt29 b\n    INNER JOIN (\n        SELECT\
+      \ ProcessGuid\n        FROM apt29\n        WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n            AND EventID = 1\n            AND LOWER(ParentImage) LIKE '%cod.%'\n\
+      \            AND LOWER(ParentImage) LIKE '%.scr'\n    ) a\n    ON b.ParentProcessGuid\
+      \ = a.ProcessGuid\n    WHERE b.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND b.EventID = 1\n) c\nON d.ProcessGuid = c.ProcessGuid\nWHERE d.Channel\
+      \ = \"Microsoft-Windows-Sysmon/Operational\"\n  AND d.EventID = 11\n  AND LOWER(d.TargetFilename)\
+      \ LIKE '%.zip'"
+    covered_techniques:
+    - T1560.001
+    - T1074.001
+    - T1560
+    reference_ttp: TTP-0017-6044-7344
+    notes: []
+    validation:
+      status: unchecked
+      update_date: ''
+      dataset: ''
+      references: []
+      notes: []
+- ttp_id: TTP-0017-6044-7520
+  tactic: TA0010
+  technique: T1041
+  procedure: O arquivo é então exfiltrado pela conexão C2 existente.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6044-7700
+  detection_rules: []
+- ttp_id: TTP-0017-6044-7700
+  tactic: TA0011
+  technique: T1105
+  procedure: O invasor carrega um novo payload para a vítima. O payload é um arquivo
+    de imagem legitimamente formado (formato png) com um script PowerShell oculto.
+  secondary_techniques:
+  - T1027.003
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6045-0689
+  detection_rules:
+  - rule_id: DTR-0017-6100-1386
+    creation_date: '2025-10-20'
+    update_date: '2025-10-23'
+    description: Detecta quando um processo criado pelo executável malicioso (que
+      contém 'cod.' no nome e extensão '.scr') carrega um arquivo com extensão '.png'.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT b.`@timestamp`,b.UtcTime,b.EventTime,b.Message\nFROM apt29 a\n\
+      INNER JOIN (\n    SELECT ProcessGuid, Message, UtcTime, EventTime, `@timestamp`\n\
+      \    FROM apt29\n    WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND EventID = 11\n        AND LOWER(TargetFilename) LIKE '%.png'\n\
+      ) b\nON a.ProcessGuid = b.ProcessGuid\nWHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND a.EventID = 1\n    AND LOWER(a.Image) LIKE '%cod.%'\n    AND LOWER(a.Image)\
+      \ LIKE '%.scr'"
+    covered_techniques:
+    - T1105
+    reference_ttp: TTP-0017-6044-7700
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6045-0689
+  tactic: TA0004
+  technique: T1548.002
+  procedure: "O invasor eleva os privilégios por meio de um bypass do controle de\
+    \ conta de usuário (UAC), que executa o payload recém-adicionado. Esse processo\
+    \ é realizado da seguinte forma: \nO invasor cria uma nova chave de registro e\
+    \ uma entrada `DelegateExecute` que aponta para seu payload malicioso, como um\
+    \ prompt de comando ou um script. Em seguida, o invasor executa o `sdclt.exe`.\
+    \ Devido à sua configuração `autoElevate`, o processo `sdclt.exe` inicia um novo\
+    \ processo com privilégios (administrador). Esse processo `sdclt.exe` acessa o\
+    \ registro e, devido à modificação do invasor, é induzido a executar a carga maliciosa\
+    \ com privilégios elevados, ignorando o prompt de segurança do UAC."
+  secondary_techniques:
+  - T1546.015
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6045-2068
+  detection_rules:
+  - rule_id: DTR-0017-6100-4576
+    creation_date: '2025-10-20'
+    update_date: '2025-10-23'
+    description: Detecta alterações suspeitas no registro relacionadas à chave 'DelegateExecute'
+      em caminhos de comando do Shell, indicando uma possível tentativa de execução
+      por meio de técnicas de COM hijacking.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29\nWHERE Channel\
+      \ = \"Microsoft-Windows-Sysmon/Operational\"\n    AND EventID = 13\n    AND\
+      \ LOWER(TargetObject) RLIKE '.*\\\\\\\\\\\\\\\\folder\\\\\\\\\\\\\\\\shell\\\
+      \\\\\\\\\\\\\\open\\\\\\\\\\\\\\\\command\\\\\\\\\\\\\\delegateexecute.*'"
+    covered_techniques:
+    - T1546.015
+    reference_ttp: TTP-0017-6045-0689
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+  - rule_id: DTR-0017-6100-6059
+    creation_date: '2025-10-20'
+    update_date: '2025-10-23'
+    description: Detecta a execução do processo 'sdclt.exe' com nível de integridade
+      elevado (High), indicando uma possível tentativa de abuso de ferramenta legítima
+      para escalação de privilégios via bypass do UAC.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29\nWHERE Channel\
+      \ = \"Microsoft-Windows-Sysmon/Operational\"\n    AND EventID = 1\n    AND LOWER(Image)\
+      \ LIKE \"%sdclt.exe\"\n    AND IntegrityLevel = \"High\""
+    covered_techniques:
+    - T1548.002
+    reference_ttp: TTP-0017-6045-0689
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6045-2068
+  tactic: TA0011
+  technique: T1071.001
+  procedure: Uma nova conexão C2 é estabelecida pela porta 443 usando o protocolo
+    HTTPS.
+  secondary_techniques:
+  - T1573
+  - T1043
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6045-2305
+  detection_rules: []
+- ttp_id: TTP-0017-6045-2305
+  tactic: TA0005
+  technique: T1112
+  procedure: O invasor remove os artefatos da escalação de privilégios do Registro.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6045-2548
+  detection_rules:
+  - rule_id: DTR-0017-6104-7163
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a exclusão de uma chave do registro relacionada a caminhos
+      de comando do Shell ('...\folder\shell\open\command') realizada por um processo
+      descendente de um executável suspeito (que contém 'cod.' no nome e possui extensão
+      '.scr'), indicando tentativa de remoção de artefato usado na escalação de privilégio.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 d\nINNER JOIN\
+      \ (\n    SELECT b.ProcessGuid\n    FROM apt29 b\n    INNER JOIN (\n        SELECT\
+      \ ProcessGuid\n        FROM apt29\n        WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n            AND EventID = 1\n            AND LOWER(ParentImage) LIKE '%cod.%'\n\
+      \            AND LOWER(ParentImage) LIKE '%.scr'\n    ) a\n    ON b.ParentProcessGuid\
+      \ = a.ProcessGuid\n    WHERE b.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND b.EventID = 1\n) c\nON d.ProcessGuid = c.ProcessGuid\nWHERE d.Channel\
+      \ = \"Microsoft-Windows-Sysmon/Operational\"\n  AND d.EventID = 12\n  AND LOWER(d.TargetObject)\
+      \ RLIKE '.*\\\\\\\\\\\\\\\\folder\\\\\\\\\\\\\\\\shell\\\\\\\\\\\\\\\\open\\\
+      \\\\\\\\\\\\\\command.*'\n  AND d.Message RLIKE '.*EventType: DeleteKey.*'"
+    covered_techniques:
+    - T1112
+    reference_ttp: TTP-0017-6045-2305
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6045-2548
+  tactic: TA0011
+  technique: T1105
+  procedure: O invasor carrega ferramentas adicionais (arquivo zip) através do novo
+    acesso elevado.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6045-8979
+  detection_rules:
+  - rule_id: DTR-0017-6104-8503
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a criação de arquivos .zip por um processo executado com
+      nível de integridade elevado (High), iniciado a partir de control.exe, o qual
+      foi lançado por sdclt.exe.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 d\nINNER JOIN\
+      \ (\n  SELECT a.ProcessGuid, a.ParentProcessGuid\n  FROM apt29 a\n  INNER JOIN\
+      \ (\n    SELECT ProcessGuid\n    FROM apt29\n    WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND EventID = 1\n        AND LOWER(Image) LIKE \"%control.exe\"\n\
+      \        AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n  ) b\n  ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n  WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND a.EventID = 1\n    AND a.IntegrityLevel = \"High\"\n) c\nON d.ProcessGuid\
+      \ = c.ProcessGuid\nWHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n  AND d.EventID = 11\n  AND LOWER(d.TargetFilename) LIKE '%.zip'"
+    covered_techniques:
+    - T1105
+    reference_ttp: TTP-0017-6045-2548
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6045-8979
+  tactic: TA0005
+  technique: T1140
+  procedure: Descompacta a ferramenta usando um shell interativo com acesso elevado
+    (powershell.exe) para posicioná-la no destino para uso.
+  secondary_techniques:
+  - T1059.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6045-9266
+  detection_rules:
+  - rule_id: DTR-0017-6104-9721
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que utiliza o cmdlet 'Expand-Archive',
+      executado a partir de um processo 'control.exe' iniciado por 'sdclt.exe' com
+      nível de integridade elevado (High), indicando uma possível tentativa de descompactação
+      de arquivos após escalação de privilégios.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,Payload\nFROM apt29 f\nINNER JOIN (\n  \
+      \  SELECT d.ProcessId\n    FROM apt29 d\n    INNER JOIN (\n      SELECT a.ProcessGuid,\
+      \ a.ParentProcessGuid\n      FROM apt29 a\n      INNER JOIN (\n        SELECT\
+      \ ProcessGuid\n        FROM apt29\n        WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n            AND EventID = 1\n            AND LOWER(Image) LIKE \"%control.exe\"\
+      \n            AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n      ) b\n      ON\
+      \ a.ParentProcessGuid = b.ProcessGuid\n      WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND a.EventID = 1\n        AND a.IntegrityLevel = \"High\"\n    )\
+      \ c\n    ON d.ParentProcessGuid= c.ProcessGuid\n    WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND d.EventID = 1\n      AND d.Image LIKE '%powershell.exe'\n) e\nON\
+      \ f.ExecutionProcessID = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n    AND f.EventID = 4103\n    AND LOWER(f.Payload) LIKE \"%expand-archive%\""
+    covered_techniques:
+    - T1140
+    - T1059.001
+    reference_ttp: TTP-0017-6045-8979
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6045-9266
+  tactic: TA0007
+  technique: T1057
+  procedure: O invasor então enumera os processos em execução para descobrir/encerrar
+    o acesso inicial da Etapa 1.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-1439
+  detection_rules:
+  - rule_id: DTR-0017-6105-0296
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que utiliza o cmdlet 'Get-Process',
+      executado a partir de um processo 'control.exe' iniciado por 'sdclt.exe' com
+      nível de integridade elevado (High), indicando uma possível tentativa de enumeração
+      de processos após escalação de privilégios.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 f\nINNER JOIN\
+      \ (\n    SELECT d.ProcessId\n    FROM apt29 d\n    INNER JOIN (\n      SELECT\
+      \ a.ProcessGuid, a.ParentProcessGuid\n      FROM apt29 a\n      INNER JOIN (\n\
+      \        SELECT ProcessGuid\n        FROM apt29\n        WHERE Channel = \"\
+      Microsoft-Windows-Sysmon/Operational\"\n            AND EventID = 1\n      \
+      \      AND LOWER(Image) LIKE \"%control.exe\"\n            AND LOWER(ParentImage)\
+      \ LIKE \"%sdclt.exe\"\n      ) b\n      ON a.ParentProcessGuid = b.ProcessGuid\n\
+      \      WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\n        AND\
+      \ a.EventID = 1\n        AND a.IntegrityLevel = \"High\"\n    ) c\n    ON d.ParentProcessGuid=\
+      \ c.ProcessGuid\n    WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND d.EventID = 1\n      AND d.Image LIKE '%powershell.exe'\n) e\nON\
+      \ f.ExecutionProcessID = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n    AND f.EventID = 4104\n    AND LOWER(f.ScriptBlockText) LIKE \"%get-process%\""
+    covered_techniques:
+    - T1057
+    - T1059.001
+    reference_ttp: TTP-0017-6045-9266
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-1439
+  tactic: TA0005
+  technique: T1070.004
+  procedure: Exclui os arquivos associados ao acesso inicial da Etapa 1.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-1657
+  - TTP-0017-6046-2409
+  - TTP-0017-6046-2437
+  - TTP-0017-6046-2449
+  - TTP-0017-6046-2450
+  - TTP-0017-6046-2453
+  - TTP-0017-6046-2456
+  detection_rules:
+  - rule_id: DTR-0017-6105-0810
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução do utilitário 'sdelete' para exclusão de arquivos
+      'draft.zip', 'sysinternalssuite.zip' ou que contenham 'cod.' no nome extensão
+      '.scr', iniciada por um processo PowerShell originado da cadeia de execução
+      envolvendo 'sdclt.exe' e 'control.exe' com nível de integridade elevado (High),
+      indicando uma possível tentativa de exclusão segura de arquivos maliciosos para
+      ocultação de rastros.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message, g.CommandLine\nFROM apt29\
+      \ h\nINNER JOIN (\n  SELECT f.ProcessGuid, f.CommandLine\n  FROM apt29 f\n \
+      \ INNER JOIN (\n    SELECT d.ProcessId, d.ProcessGuid\n    FROM apt29 d\n  \
+      \  INNER JOIN (\n      SELECT a.ProcessGuid, a.ParentProcessGuid\n      FROM\
+      \ apt29 a\n      INNER JOIN (\n        SELECT ProcessGuid\n        FROM apt29\n\
+      \        WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n        \
+      \    AND EventID = 1\n            AND LOWER(Image) LIKE \"%control.exe\"\n \
+      \           AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n      ) b\n      ON\
+      \ a.ParentProcessGuid = b.ProcessGuid\n      WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND a.EventID = 1\n        AND a.IntegrityLevel = \"High\"\n    )\
+      \ c\n    ON d.ParentProcessGuid = c.ProcessGuid\n    WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND d.EventID = 1\n      AND d.Image LIKE '%powershell.exe'\n  ) e\n\
+      \  ON f.ParentProcessGuid = e.ProcessGuid\n  WHERE f.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND f.EventID = 1\n    AND LOWER(f.Image) LIKE '%sdelete%'\n    AND (\n\
+      \        LOWER(f.CommandLine) LIKE '%draft.zip%'\n        OR LOWER(f.CommandLine)\
+      \ LIKE '%sysinternalssuite.zip%'\n        OR (\n            LOWER(f.CommandLine)\
+      \ LIKE '%cod.%'\n            AND LOWER(f.CommandLine) LIKE '%.scr'\n       \
+      \ )\n    )\n) g\nON h.ProcessGuid = g.ProcessGuid\nWHERE h.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n  AND h.EventID = 23"
+    covered_techniques:
+    - T1070.004
+    reference_ttp: TTP-0017-6046-1439
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-1657
+  tactic: TA0007
+  technique: T1083
+  procedure: O invasor lança um script PowerShell que executa uma ampla variedade
+    de comandos de reconhecimento, incluindo enumerar o caminho do diretório temporário
+    do usuário.
+  secondary_techniques:
+  - T1059.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-4431
+  - TTP-0017-6046-4432
+  detection_rules:
+  - rule_id: DTR-0017-6105-2497
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que faz referência ao
+      diretório '%TEMP%', executado a partir de um processo 'control.exe' iniciado
+      por 'sdclt.exe' com nível de integridade elevado (High), indicando possível
+      enumeração do caminho do diretório temporário do usuário.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 f\nINNER JOIN\
+      \ (\n  SELECT d.ProcessId\n  FROM apt29 d\n  INNER JOIN (\n    SELECT a.ProcessGuid,\
+      \ a.ParentProcessGuid\n    FROM apt29 a\n    INNER JOIN (\n      SELECT ProcessGuid\n\
+      \      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND LOWER(Image) LIKE \"%control.exe\"\
+      \n          AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND a.EventID = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON\
+      \ d.ParentProcessGuid= c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n  AND f.EventID = 4104\n  AND LOWER(f.ScriptBlockText) LIKE \"%$env:temp%\""
+    covered_techniques:
+    - T1083
+    - T1059.001
+    reference_ttp: TTP-0017-6046-1657
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-2409
+  tactic: TA0007
+  technique: T1033
+  procedure: O invasor lança um script PowerShell que executa uma ampla variedade
+    de comandos de reconhecimento, incluindo a enumeração do nome de usuário atual.
+  secondary_techniques:
+  - T1059.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-4431
+  - TTP-0017-6046-4432
+  detection_rules:
+  - rule_id: DTR-0017-6105-3592
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que faz referência à variável
+      de ambiente '$env:USERNAME', executado a partir de um processo 'control.exe'
+      iniciado por 'sdclt.exe' com nível de integridade elevado (High), indicando
+      possível enumeração do nome de usuário.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 f\nINNER JOIN\
+      \ (\n  SELECT d.ProcessId\n  FROM apt29 d\n  INNER JOIN (\n    SELECT a.ProcessGuid,\
+      \ a.ParentProcessGuid\n    FROM apt29 a\n    INNER JOIN (\n      SELECT ProcessGuid\n\
+      \      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND LOWER(Image) LIKE \"%control.exe\"\
+      \n          AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND a.EventID = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON\
+      \ d.ParentProcessGuid= c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n  AND f.EventID = 4104\n  AND LOWER(f.ScriptBlockText) LIKE \"%$env:username%\""
+    covered_techniques:
+    - T1033
+    - T1059.001
+    reference_ttp: TTP-0017-6046-2409
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-2437
+  tactic: TA0007
+  technique: T1082
+  procedure: O invasor lança um script PowerShell que executa uma ampla variedade
+    de comandos de reconhecimento, incluindo a enumeração do nome do host do computador
+    e da versão do sistema operacional.
+  secondary_techniques:
+  - T1059.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-4431
+  - TTP-0017-6046-4432
+  detection_rules:
+  - rule_id: DTR-0017-6105-5552
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que faz referência à variável
+      '$env:COMPUTERNAME' ou utiliza o cmdlet 'gwmi Win32_OperatingSystem', executado
+      a partir de um processo 'control.exe' iniciado por 'sdclt.exe' com nível de
+      integridade elevado (High), indicando possível enumeração do nome do computador
+      ou da versão do Sistema Operacional.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 f\nINNER JOIN\
+      \ (\n  SELECT d.ProcessId\n  FROM apt29 d\n  INNER JOIN (\n    SELECT a.ProcessGuid,\
+      \ a.ParentProcessGuid\n    FROM apt29 a\n    INNER JOIN (\n      SELECT ProcessGuid\n\
+      \      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND LOWER(Image) LIKE \"%control.exe\"\
+      \n          AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND a.EventID = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON\
+      \ d.ParentProcessGuid= c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n  AND f.EventID = 4104\n  AND (\n    LOWER(f.ScriptBlockText) LIKE \"%$env:computername%\"\
+      \n    OR LOWER(f.ScriptBlockText) LIKE \"%gwmi win32_operatingsystem%\"\n  \
+      \  )"
+    covered_techniques:
+    - T1082
+    - T1059.001
+    reference_ttp: TTP-0017-6046-2437
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-2449
+  tactic: TA0007
+  technique: T1016
+  procedure: O invasor lança um script PowerShell que executa uma ampla variedade
+    de comandos de reconhecimento, incluindo a enumeração do nome de domínio atual.
+  secondary_techniques:
+  - T1059.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-4431
+  - TTP-0017-6046-4432
+  detection_rules:
+  - rule_id: DTR-0017-6105-6366
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que faz referência à variável
+      '$env:USERDOMAIN', executado a partir de um processo 'control.exe' iniciado
+      por 'sdclt.exe' com nível de integridade elevado (High), indicando possível
+      enumeração do nome do domínio.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 f\nINNER JOIN\
+      \ (\n  SELECT d.ProcessId\n  FROM apt29 d\n  INNER JOIN (\n    SELECT a.ProcessGuid,\
+      \ a.ParentProcessGuid\n    FROM apt29 a\n    INNER JOIN (\n      SELECT ProcessGuid\n\
+      \      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND LOWER(Image) LIKE \"%control.exe\"\
+      \n          AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND a.EventID = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON\
+      \ d.ParentProcessGuid= c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n  AND f.EventID = 4104\n  AND LOWER(f.ScriptBlockText) LIKE \"%$env:userdomain%\""
+    covered_techniques:
+    - T1016
+    - T1059.001
+    reference_ttp: TTP-0017-6046-2449
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-2450
+  tactic: TA0007
+  technique: T1057
+  procedure: O invasor lança um script PowerShell que executa uma ampla variedade
+    de comandos de reconhecimento, incluindo a enumeração do ID do processo atual.
+  secondary_techniques:
+  - T1059.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-4431
+  - TTP-0017-6046-4432
+  detection_rules:
+  - rule_id: DTR-0017-6105-6754
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que faz referência à variável
+      '$PID', executado a partir de um processo 'control.exe' iniciado por 'sdclt.exe'
+      com nível de integridade elevado (High), indicando possível enumeração de processos
+      ou auto-inspeção do identificador de processo.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 f\nINNER JOIN\
+      \ (\n  SELECT d.ProcessId\n  FROM apt29 d\n  INNER JOIN (\n    SELECT a.ProcessGuid,\
+      \ a.ParentProcessGuid\n    FROM apt29 a\n    INNER JOIN (\n      SELECT ProcessGuid\n\
+      \      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND LOWER(Image) LIKE \"%control.exe\"\
+      \n          AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND a.EventID = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON\
+      \ d.ParentProcessGuid= c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n  AND f.EventID = 4104\n  AND LOWER(f.ScriptBlockText) LIKE \"%$pid%\""
+    covered_techniques:
+    - T1057
+    - T1059.001
+    reference_ttp: TTP-0017-6046-2450
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-2453
+  tactic: TA0007
+  technique: T1518.001
+  procedure: O invasor lança um script PowerShell que executa uma ampla variedade
+    de comandos de reconhecimento, incluindo a enumeração de softwares antivírus e
+    firewall.
+  secondary_techniques:
+  - T1059.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-4431
+  - TTP-0017-6046-4432
+  detection_rules:
+  - rule_id: DTR-0017-6105-7294
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que consulta classes WMI
+      '-Class AntivirusProduct' ou '-Class FirewallProduct', executado a partir de
+      um processo 'control.exe' iniciado por 'sdclt.exe' com nível de integridade
+      elevado (High), indicando possível reconhecimento de produtos de segurança instalados
+      no sistema.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 f\nINNER JOIN\
+      \ (\n  SELECT d.ProcessId\n  FROM apt29 d\n  INNER JOIN (\n    SELECT a.ProcessGuid,\
+      \ a.ParentProcessGuid\n    FROM apt29 a\n    INNER JOIN (\n      SELECT ProcessGuid\n\
+      \      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND LOWER(Image) LIKE \"%control.exe\"\
+      \n          AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND a.EventID = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON\
+      \ d.ParentProcessGuid= c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n  AND f.EventID = 4104\n  AND (\n    LOWER(f.ScriptBlockText) LIKE \"%-class\
+      \ antivirusproduct%\"\n    OR LOWER(f.ScriptBlockText) LIKE \"%-class firewallproduct%\"\
+      \n    )"
+    covered_techniques:
+    - T1518.001
+    - T1059.001
+    reference_ttp: TTP-0017-6046-2453
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-2456
+  tactic: TA0007
+  technique: T1069
+  procedure: O invasor lança um script PowerShell que executa uma ampla variedade
+    de comandos de reconhecimento, incluindo enumerar grupos de usuário no sistema
+    por meio da API NetUserGetGroups do Netapi32.dll.
+  secondary_techniques:
+  - T1106
+  - T1059.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-4431
+  - TTP-0017-6046-4432
+  detection_rules:
+  - rule_id: DTR-0017-6106-2801
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que utiliza os cmdlets
+      'NetUserGetGroups' ou 'NetUserGetLocalGroups', executado a partir de um processo
+      'control.exe' iniciado por 'sdclt.exe' com nível de integridade elevado (High),
+      indicando possível enumeração de grupos de usuários no sistema.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 f\nINNER JOIN\
+      \ (\n  SELECT d.ProcessId\n  FROM apt29 d\n  INNER JOIN (\n    SELECT a.ProcessGuid,\
+      \ a.ParentProcessGuid\n    FROM apt29 a\n    INNER JOIN (\n      SELECT ProcessGuid\n\
+      \      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND LOWER(Image) LIKE \"%control.exe\"\
+      \n          AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND a.EventID = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON\
+      \ d.ParentProcessGuid= c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n  AND f.EventID = 4104\n  AND (\n    LOWER(f.ScriptBlockText) LIKE \"%netusergetgroups%\"\
+      \n    OR LOWER(f.ScriptBlockText) LIKE \"%netusergetlocalgroups%\"\n    )"
+    covered_techniques:
+    - T1069
+    - T1059.001
+    - T1106
+    reference_ttp: TTP-0017-6046-2456
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-4431
+  tactic: TA0003
+  technique: T1543.003
+  procedure: Cria um novo serviço (javamtsup) que execute um binário de serviço (javamtsup.exe)
+    na inicialização do sistema.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-5407
+  detection_rules:
+  - rule_id: DTR-0017-6106-4244
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que utiliza o cmdlet 'New-Service',
+      executado a partir de um processo 'control.exe' iniciado por 'sdclt.exe' com
+      nível de integridade elevado (High), indicando possível tentativa de criação
+      de serviço para persistência.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,Payload\nFROM apt29 f\nINNER JOIN (\n  SELECT\
+      \ d.ProcessId, d.ParentProcessId\n  FROM apt29 d\n  INNER JOIN (\n    SELECT\
+      \ a.ProcessGuid, a.ParentProcessGuid\n    FROM apt29 a\n    INNER JOIN (\n \
+      \     SELECT ProcessGuid\n      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND LOWER(Image) LIKE \"%control.exe\"\
+      \n          AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND a.EventID = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON\
+      \ d.ParentProcessGuid= c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n  AND f.EventID = 4103\n  AND LOWER(f.Payload) LIKE \"%new-service%\""
+    covered_techniques:
+    - T1543.003
+    - T1059.001
+    reference_ttp: TTP-0017-6046-4431
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-4432
+  tactic: TA0003
+  technique: T1547.001
+  procedure: Cria uma carga maliciosa (hostui.lnk) na pasta Inicialização do Windows
+    que seja executada no login.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-5407
+  detection_rules:
+  - rule_id: DTR-0017-6106-5518
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a criação de arquivo em diretório de inicialização (`StartUp`)
+      do Windows por um processo 'control.exe' iniciado por 'sdclt.exe' com nível
+      de integridade elevado (High), indicando uma possível tentativa de estabelecer
+      persistência.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 f\nINNER JOIN\
+      \ (\n    SELECT d.ProcessGuid\n    FROM apt29 d\n    INNER JOIN (\n      SELECT\
+      \ a.ProcessGuid, a.ParentProcessGuid\n      FROM apt29 a\n      INNER JOIN (\n\
+      \        SELECT ProcessGuid\n        FROM apt29\n        WHERE Channel = \"\
+      Microsoft-Windows-Sysmon/Operational\"\n            AND EventID = 1\n      \
+      \      AND LOWER(Image) LIKE \"%control.exe\"\n            AND LOWER(ParentImage)\
+      \ LIKE \"%sdclt.exe\"\n      ) b\n      ON a.ParentProcessGuid = b.ProcessGuid\n\
+      \      WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\n        AND\
+      \ a.EventID = 1\n        AND a.IntegrityLevel = \"High\"\n    ) c\n    ON d.ParentProcessGuid=\
+      \ c.ProcessGuid\n    WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND d.EventID = 1\n      AND d.Image LIKE '%powershell.exe'\n) e\nON\
+      \ f.ProcessGuid = e.ProcessGuid\nWHERE f.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND f.EventID = 11\n    AND f.TargetFilename RLIKE '.*\\\\\\\\\\\\\\\\\
+      ProgramData\\\\\\\\\\\\\\\\Microsoft\\\\\\\\\\\\\\\\Windows\\\\\\\\\\\\\\\\\
+      Start Menu\\\\\\\\\\\\\\\\Programs\\\\\\\\\\\\\\\\StartUp.*'"
+    covered_techniques:
+    - T1547.001
+    reference_ttp: TTP-0017-6046-4432
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-5407
+  tactic: TA0006
+  technique: T1555.003
+  procedure: O invasor acessa as credenciais armazenadas em um navegador da web local
+    usando uma ferramenta renomeada para se passar por um aplicativo legítimo.
+  secondary_techniques:
+  - T1552.001
+  - T1036.005
+  related_ttps:
+  - TTP-0017-6046-5816
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-6464
+  - TTP-0017-6046-7568
+  detection_rules: []
+- ttp_id: TTP-0017-6046-5816
+  tactic: TA0005
+  technique: T1036.005
+  procedure: Ferramenta de dump de senhas do Chrome mascarada como accesscheck.exe,
+    uma ferramenta legítima da Sysinternals.
+  secondary_techniques: []
+  related_ttps:
+  - TTP-0017-6046-5407
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain: []
+  detection_rules:
+  - rule_id: DTR-0017-6106-5995
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta o carregamento do utilitário de nome 'accesschk' (mesmo nome
+      de ferramenta legítma do Sysinternals) em um processo PowerShell iniciado por
+      'control.exe', que por sua vez foi executado a partir de 'sdclt.exe' com nível
+      de integridade elevado (High).
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 h\nINNER JOIN\
+      \ (\n    SELECT f.ProcessGuid\n    FROM apt29 f\n    INNER JOIN (\n      SELECT\
+      \ d.ProcessGuid, d.ParentProcessGuid\n      FROM apt29 d\n      INNER JOIN (\n\
+      \        SELECT a.ProcessGuid, a.ParentProcessGuid\n        FROM apt29 a\n \
+      \       INNER JOIN (\n          SELECT ProcessGuid\n          FROM apt29\n \
+      \         WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n       \
+      \       AND EventID = 1\n              AND LOWER(Image) LIKE \"%control.exe\"\
+      \n              AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n        ) b\n  \
+      \      ON a.ParentProcessGuid = b.ProcessGuid\n        WHERE a.Channel = \"\
+      Microsoft-Windows-Sysmon/Operational\"\n          AND a.EventID = 1\n      \
+      \    AND a.IntegrityLevel = \"High\"\n      ) c\n      ON d.ParentProcessGuid=\
+      \ c.ProcessGuid\n      WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND d.EventID = 1\n        AND d.Image LIKE '%powershell.exe'\n  \
+      \  ) e\n    ON f.ParentProcessGuid = e.ProcessGuid\n    WHERE f.Channel = \"\
+      Microsoft-Windows-Sysmon/Operational\"\n      AND f.EventID = 1\n      AND LOWER(f.Image)\
+      \ LIKE '%accesschk%'\n) g\nON h.ProcessGuid = g.ProcessGuid\nWHERE h.Channel\
+      \ = \"Microsoft-Windows-Sysmon/Operational\"\n    AND EventID = 7\n    AND LOWER(ImageLoaded)\
+      \ LIKE '%accesschk%'"
+    covered_techniques:
+    - T1036.005
+    reference_ttp: TTP-0017-6046-5816
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6046-6464
+  tactic: TA0006
+  technique: T1552.004
+  procedure: O invasor coleta chaves privadas.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-5413
+  - TTP-0017-6049-7247
+  - TTP-0017-6049-7350
+  - TTP-0017-6049-7604
+  detection_rules: []
+- ttp_id: TTP-0017-6046-7568
+  tactic: TA0006
+  technique: T1003.002
+  procedure: O invasor coleta hashes de senhas.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-5413
+  - TTP-0017-6049-7247
+  - TTP-0017-6049-7350
+  - TTP-0017-6049-7604
+  detection_rules: []
+- ttp_id: TTP-0017-6049-5413
+  tactic: TA0009
+  technique: T1113
+  procedure: O invasor coleta capturas de tela.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-8712
+  detection_rules:
+  - rule_id: DTR-0017-6106-6816
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta o carregamento da biblioteca 'System.Drawing.ni.dll' por
+      um processo PowerShell iniciado por 'control.exe', o qual foi executado a partir
+      de 'sdclt.exe' com nível de integridade elevado (High), indicando possível uso
+      de componentes gráficos .NET para captura de tela.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 f\nINNER JOIN\
+      \ (\n    SELECT d.ProcessGuid, d.ParentProcessGuid\n    FROM apt29 d\n    INNER\
+      \ JOIN (\n      SELECT a.ProcessGuid, a.ParentProcessGuid\n      FROM apt29\
+      \ a\n      INNER JOIN (\n        SELECT ProcessGuid\n        FROM apt29\n  \
+      \      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n          \
+      \  AND EventID = 1\n            AND LOWER(Image) LIKE \"%control.exe\"\n   \
+      \         AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n      ) b\n      ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n      WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND a.EventID = 1\n        AND a.IntegrityLevel = \"High\"\n    )\
+      \ c\n    ON d.ParentProcessGuid= c.ProcessGuid\n    WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND d.EventID = 1\n      AND d.Image LIKE '%powershell.exe'\n) e\nON\
+      \ f.ProcessGuid = e.ProcessGuid\nWHERE f.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND f.EventID = 7\n    AND LOWER(f.ImageLoaded) LIKE \"%system.drawing.ni.dll\""
+    covered_techniques:
+    - T1113
+    - T1106
+    reference_ttp: TTP-0017-6049-5413
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+  - rule_id: DTR-0017-6106-7870
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de comando PowerShell contendo a função `CopyFromScreen`,
+      executado por um processo `powershell.exe` iniciado por `control.exe`, o qual,
+      por sua vez, foi executado a partir de `sdclt.exe` com nível de integridade
+      elevado (High), indicando possível captura de tela do sistema.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,Payload\nFROM apt29 f\nINNER JOIN (\n  \
+      \  SELECT d.ProcessId, d.ParentProcessId\n    FROM apt29 d\n    INNER JOIN (\n\
+      \      SELECT a.ProcessGuid, a.ParentProcessGuid\n      FROM apt29 a\n     \
+      \ INNER JOIN (\n        SELECT ProcessGuid\n        FROM apt29\n        WHERE\
+      \ Channel = \"Microsoft-Windows-Sysmon/Operational\"\n            AND EventID\
+      \ = 1\n            AND LOWER(Image) LIKE \"%control.exe\"\n            AND LOWER(ParentImage)\
+      \ LIKE \"%sdclt.exe\"\n      ) b\n      ON a.ParentProcessGuid = b.ProcessGuid\n\
+      \      WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\n        AND\
+      \ a.EventID = 1\n        AND a.IntegrityLevel = \"High\"\n    ) c\n    ON d.ParentProcessGuid=\
+      \ c.ProcessGuid\n    WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND d.EventID = 1\n      AND d.Image LIKE '%powershell.exe'\n) e\nON\
+      \ f.ExecutionProcessID = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n    AND f.EventID = 4103\n    AND LOWER(f.Payload) LIKE \"%copyfromscreen%\""
+    covered_techniques:
+    - T1113
+    - T1059.001
+    reference_ttp: TTP-0017-6049-5413
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6049-7247
+  tactic: TA0009
+  technique: T1115
+  procedure: O invasor coleta dados da área de transferência do usuário.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-8712
+  detection_rules:
+  - rule_id: DTR-0017-6106-7534
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um comando PowerShell que utiliza 'Get-Clipboard',
+      executado a partir de um processo 'control.exe' iniciado por 'sdclt.exe' com
+      nível de integridade elevado (High), indicando possível captura de dados do
+      clipboard do sistema.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,Payload\nFROM apt29 f\nINNER JOIN (\n  SELECT\
+      \ d.ProcessId, d.ParentProcessId\n  FROM apt29 d\n  INNER JOIN (\n    SELECT\
+      \ a.ProcessGuid, a.ParentProcessGuid\n    FROM apt29 a\n    INNER JOIN (\n \
+      \     SELECT ProcessGuid\n      FROM apt29\n      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND LOWER(Image) LIKE \"%control.exe\"\
+      \n          AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n      AND a.EventID = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON\
+      \ d.ParentProcessGuid= c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n    AND f.EventID = 4103\n    AND LOWER(f.Payload) LIKE \"%get-clipboard%\""
+    covered_techniques:
+    - T1115
+    - T1059.001
+    reference_ttp: TTP-0017-6049-7247
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6049-7350
+  tactic: TA0009
+  technique: T1056.001
+  procedure: O invasor coleta as teclas digitadas.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-8712
+  detection_rules: []
+- ttp_id: TTP-0017-6049-7604
+  tactic: TA0009
+  technique: T1005
+  procedure: O invasor então coleta os arquivos que são compactados e criptografados.
+  secondary_techniques:
+  - T1560
+  related_ttps:
+  - TTP-0017-6049-8462
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-8712
+  detection_rules: []
+- ttp_id: TTP-0017-6049-8462
+  tactic: TA0009
+  technique: T1560
+  procedure: Os arquivos coletados são compactados e criptografados antes de serem
+    exfiltrados.
+  secondary_techniques: []
+  related_ttps:
+  - TTP-0017-6049-7604
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain: []
+  detection_rules:
+  - rule_id: DTR-0017-6106-8933
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de um script PowerShell que utiliza a função 'compress-7zip',
+      executado a partir de um processo 'control.exe' iniciado por 'sdclt.exe' com
+      nível de integridade elevado (High), indicando uma possível tentativa de compactação
+      de arquivos com 7-Zip para preparação de exfiltração.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,f.ScriptBlockText\nFROM apt29 f\nINNER JOIN\
+      \ (\n  SELECT d.ProcessId, d.ParentProcessId\n  FROM apt29 d\n  INNER JOIN (\n\
+      \    SELECT a.ProcessGuid, a.ParentProcessGuid\n    FROM apt29 a\n    INNER\
+      \ JOIN (\n      SELECT ProcessGuid\n      FROM apt29\n      WHERE Channel =\
+      \ \"Microsoft-Windows-Sysmon/Operational\"\n          AND EventID = 1\n    \
+      \      AND LOWER(Image) LIKE \"%control.exe\"\n          AND LOWER(ParentImage)\
+      \ LIKE \"%sdclt.exe\"\n    ) b\n    ON a.ParentProcessGuid = b.ProcessGuid\n\
+      \    WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\n      AND a.EventID\
+      \ = 1\n      AND a.IntegrityLevel = \"High\"\n  ) c\n  ON d.ParentProcessGuid=\
+      \ c.ProcessGuid\n  WHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND d.EventID = 1\n    AND d.Image LIKE '%powershell.exe'\n) e\nON f.ExecutionProcessID\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-PowerShell/Operational\"\
+      \n    AND f.EventID = 4104\n    AND LOWER(f.ScriptBlockText) LIKE \"%compress-7zip%\""
+    covered_techniques:
+    - T1560
+    - T1059.001
+    reference_ttp: TTP-0017-6049-8462
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6049-8712
+  tactic: TA0010
+  technique: T1048
+  procedure: Os arquivos coletados são exfiltrados para um compartilhamento WebDAV
+    controlado pelo invasor.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-9015
+  detection_rules:
+  - rule_id: DTR-0017-6106-9592
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a invocação de `rundll32.exe` chamando `davclnt.dll::DavSetCookie`,
+      indicando possível uso do cliente WebDAV. Essa atividade pode ser usada para
+      manipulação de sessões WebDAV ou para exfiltração via WebDAV.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29\nWHERE Channel\
+      \ = \"Microsoft-Windows-Sysmon/Operational\"\n    AND EventID = 1\n    AND CommandLine\
+      \ RLIKE '.*rundll32.exe.*\\\\\\\\\\\\\\\\windows\\\\\\\\\\\\\\\\system32\\\\\
+      \\\\\\\\\\\\davclnt.dll.*DavSetCookie.*'"
+    covered_techniques:
+    - T1048
+    - T1218.011
+    reference_ttp: TTP-0017-6049-8712
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6049-9015
+  tactic: TA0007
+  technique: T1018
+  procedure: O invasor usa consultas LDAP (Lightweight Directory Access Protocol)
+    para enumerar outros hosts no domínio.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-9628
+  detection_rules:
+  - rule_id: DTR-0017-6107-0164
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta conexões de rede na porta 389 (LDAP) realizadas por um processo
+      PowerShell iniciado por 'control.exe', o qual foi executado a partir de 'sdclt.exe'
+      com nível de integridade elevado (High).
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 f\nINNER JOIN\
+      \ (\nSELECT d.ProcessId, d.ParentProcessId\nFROM apt29 d\nINNER JOIN (\n  SELECT\
+      \ a.ProcessGuid, a.ParentProcessGuid\n  FROM apt29 a\n  INNER JOIN (\n    SELECT\
+      \ ProcessGuid\n    FROM apt29\n    WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND EventID = 1\n        AND LOWER(Image) LIKE \"%control.exe\"\n\
+      \        AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n  ) b\n  ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n  WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND a.EventID = 1\n    AND a.IntegrityLevel = \"High\"\n) c\nON d.ParentProcessGuid=\
+      \ c.ProcessGuid\nWHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\n\
+      \  AND d.EventID = 1\n  AND d.Image LIKE '%powershell.exe'\n) e\nON f.ProcessId\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-Sysmon/Operational\"\n\
+      \  AND f.EventID = 3\n  AND f.DestinationPort = 389"
+    covered_techniques:
+    - T1018
+    - T1482
+    reference_ttp: TTP-0017-6049-9015
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6049-9628
+  tactic: TA0008
+  technique: T1021.006
+  procedure: O invasor cria uma sessão remota do PowerShell para uma vítima secundária
+    via Windows Remote Management.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-9772
+  detection_rules:
+  - rule_id: DTR-0017-6107-0843
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta conexões de rede na porta 5985 (WinRM HTTP) realizadas por
+      um processo PowerShell iniciado por 'control.exe', o qual foi executado a partir
+      de 'sdclt.exe' com nível de integridade elevado (High). Essa atividade pode
+      indicar execução remota de comandos, movimentação lateral ou exfiltração de
+      dados via Windows Remote Management.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 f\nINNER JOIN\
+      \ (\nSELECT d.ProcessId, d.ParentProcessId\nFROM apt29 d\nINNER JOIN (\n  SELECT\
+      \ a.ProcessGuid, a.ParentProcessGuid\n  FROM apt29 a\n  INNER JOIN (\n    SELECT\
+      \ ProcessGuid\n    FROM apt29\n    WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND EventID = 1\n        AND LOWER(Image) LIKE \"%control.exe\"\n\
+      \        AND LOWER(ParentImage) LIKE \"%sdclt.exe\"\n  ) b\n  ON a.ParentProcessGuid\
+      \ = b.ProcessGuid\n  WHERE a.Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND a.EventID = 1\n    AND a.IntegrityLevel = \"High\"\n) c\nON d.ParentProcessGuid=\
+      \ c.ProcessGuid\nWHERE d.Channel = \"Microsoft-Windows-Sysmon/Operational\"\n\
+      \  AND d.EventID = 1\n  AND d.Image LIKE '%powershell.exe'\n) e\nON f.ProcessId\
+      \ = e.ProcessId\nWHERE f.Channel = \"Microsoft-Windows-Sysmon/Operational\"\n\
+      \  AND f.EventID = 3\n  AND f.DestinationPort = 5985"
+    covered_techniques:
+    - T1021.006
+    reference_ttp: TTP-0017-6049-9628
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6049-9772
+  tactic: TA0007
+  technique: T1057
+  procedure: Por meio dessa conexão, o invasor enumera os processos em execução.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6049-9887
+  detection_rules:
+  - rule_id: DTR-0017-6107-2091
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução do cmdlet 'Get-Process' em um contexto de sessão
+      remota PowerShell, realizada pelo processo 'wsmprovhost.exe' (Windows Remote
+      Management Provider Host). Esse processo é responsável por hospedar comandos
+      executados remotamente via WinRM/PowerShell Remoting. A presença de 'Get-Process'
+      indica possível atividade de reconhecimento de processos em um host remoto durante
+      movimentação lateral.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 b\nINNER JOIN\
+      \ (\n    SELECT ProcessGuid, ProcessId\n    FROM apt29\n    WHERE Channel =\
+      \ \"Microsoft-Windows-Sysmon/Operational\"\n    AND EventID = 1\n    AND LOWER(Image)\
+      \ LIKE '%wsmprovhost.exe'\n) a\nON b.ExecutionProcessID = a.ProcessId\nWHERE\
+      \ b.Channel = \"Microsoft-Windows-PowerShell/Operational\"\n  AND b.EventID\
+      \ = 4104\n  AND LOWER(b.ScriptBlockText) LIKE \"%get-process%\""
+    covered_techniques:
+    - T1057
+    - T1059.001
+    reference_ttp: TTP-0017-6049-9772
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6049-9887
+  tactic: TA0011
+  technique: T1105
+  procedure: O invasor carrega um novo payload compactado com UPX para a vítima secundária.
+  secondary_techniques:
+  - T1027.002
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6050-0048
+  detection_rules: []
+- ttp_id: TTP-0017-6050-0048
+  tactic: TA0002
+  technique: T1569.002
+  procedure: Esse novo payload é executado na vítima secundária por meio do utilitário
+    PSExec, usando as credenciais roubadas anteriormente.
+  secondary_techniques:
+  - T1021.002
+  - T1078.002
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6050-0265
+  detection_rules:
+  - rule_id: DTR-0017-6107-2726
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta acesso ao compartilhamento IPC$ com referência a 'PSEXESVC',
+      indicando possível tentativa de execução remota por meio do PsExec.
+    platforms:
+    - Windows
+    sources:
+    - Windows Security Auditing
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime, Hostname, ShareName, RelativeTargetName,\
+      \ SubjectUserName\nFROM apt29\nWHERE LOWER(Channel) = \"security\"\n  AND EventID\
+      \ = 5145\n  AND ShareName LIKE '%IPC%'\n  AND RelativeTargetName LIKE '%PSEXESVC%'"
+    covered_techniques:
+    - T1569.002
+    reference_ttp: TTP-0017-6050-0048
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6050-0265
+  tactic: TA0011
+  technique: T1105
+  procedure: O invasor carrega utilitários adicionais para a vítima secundária.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6053-3303
+  detection_rules:
+  - rule_id: DTR-0017-6107-3395
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta operações de criação/abertura de arquivos realizadas por
+      um processo filho de 'python.exe' cuja cadeia de execução remonta a 'services.exe'.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 f\nINNER JOIN\
+      \ (\n    SELECT d.ProcessGuid\n    FROM apt29 d\n    INNER JOIN (\n        SELECT\
+      \ b.ProcessGuid\n        FROM apt29 b\n        INNER JOIN (\n          SELECT\
+      \ ProcessGuid\n          FROM apt29\n          WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n              AND EventID = 1\n              AND ParentImage LIKE '%services.exe'\n\
+      \        ) a\n        ON b.ParentProcessGuid = a.ProcessGuid\n        WHERE\
+      \ Channel = \"Microsoft-Windows-Sysmon/Operational\"\n          AND Image LIKE\
+      \ '%python.exe'\n    ) c\n    ON d.ParentProcessGuid = c.ProcessGuid\n    WHERE\
+      \ Channel = \"Microsoft-Windows-Sysmon/Operational\"\n        AND EventID =\
+      \ 1\n) e\nON f.ProcessGuid = e.ProcessGuid\nWHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n    AND EventID = 11"
+    covered_techniques:
+    - T1105
+    reference_ttp: TTP-0017-6050-0265
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6053-3303
+  tactic: TA0007
+  technique: T1083
+  procedure: Executa um comando de linha única do PowerShell para procurar arquivos
+    de documentos e mídia no sistema de arquivos.
+  secondary_techniques:
+  - T1059.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6053-5026
+  detection_rules:
+  - rule_id: DTR-0017-6107-4117
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de comandos PowerShell contendo “Get-ChildItem”
+      por um processo PowerShell iniciado por 'python.exe', cuja cadeia de execução
+      remonta a 'services.exe', indicando possível atividade de enumeração de diretórios
+      ou arquivos.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    - PowerShell
+    language: SparkSQL
+    query: "SELECT `@timestamp`,EventTime,ScriptBlockText\nFROM apt29 h\nINNER JOIN\
+      \ (\n    SELECT f.ProcessId\n    FROM apt29 f\n    INNER JOIN (\n      SELECT\
+      \ d.ProcessGuid\n      FROM apt29 d\n      INNER JOIN (\n          SELECT b.ProcessGuid\n\
+      \          FROM apt29 b\n          INNER JOIN (\n            SELECT ProcessGuid\n\
+      \            FROM apt29\n            WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n                AND EventID = 1\n                AND ParentImage LIKE '%services.exe'\n\
+      \          ) a\n          ON b.ParentProcessGuid = a.ProcessGuid\n         \
+      \ WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n            AND\
+      \ Image LIKE '%python.exe'\n      ) c\n      ON d.ParentProcessGuid = c.ProcessGuid\n\
+      \      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n          AND\
+      \ EventID = 1\n    ) e\n    ON f.ParentProcessGuid = e.ProcessGuid\n    WHERE\
+      \ Channel = \"Microsoft-Windows-Sysmon/Operational\"\n      AND EventID = 1\n\
+      \      AND Image LIKE '%powershell.exe'\n) g\nON h.ExecutionProcessID = g.ProcessId\n\
+      WHERE h.Channel = \"Microsoft-Windows-PowerShell/Operational\"\n    AND h.EventID\
+      \ = 4104\n    AND LOWER(h.ScriptBlockText) LIKE \"%childitem%\""
+    covered_techniques:
+    - T1083
+    - T1059.001
+    reference_ttp: TTP-0017-6053-3303
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6053-5026
+  tactic: TA0009
+  technique: T1560.001
+  procedure: Os arquivos de interesse são coletados, criptografados e compactados
+    em um único arquivo.
+  secondary_techniques:
+  - T1005
+  - T1074.001
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6053-5295
+  detection_rules:
+  - rule_id: DTR-0017-6107-4769
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a execução de 'rar.exe', iniciado por um processo PowerShell
+      que, por sua vez, foi iniciado por 'python.exe' cuja cadeia de execução remonta
+      a 'services.exe'. Essa sequência pode indicar compactação de arquivos usando
+      RAR.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 h\nINNER JOIN\
+      \ (\n    SELECT f.ProcessGuid\n    FROM apt29 f\n    INNER JOIN (\n      SELECT\
+      \ d.ProcessGuid\n      FROM apt29 d\n      INNER JOIN (\n          SELECT b.ProcessGuid\n\
+      \          FROM apt29 b\n          INNER JOIN (\n            SELECT ProcessGuid\n\
+      \            FROM apt29\n            WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n                AND EventID = 1\n                AND ParentImage LIKE '%services.exe'\n\
+      \          ) a\n          ON b.ParentProcessGuid = a.ProcessGuid\n         \
+      \ WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n            AND\
+      \ Image LIKE '%python.exe'\n      ) c\n      ON d.ParentProcessGuid = c.ProcessGuid\n\
+      \      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n          AND\
+      \ EventID = 1\n    ) e\n    ON f.ParentProcessGuid = e.ProcessGuid\n    WHERE\
+      \ Channel = \"Microsoft-Windows-Sysmon/Operational\"\n      AND EventID = 1\n\
+      \      AND Image LIKE '%powershell.exe'\n) g\nON h.ParentProcessGuid = g.ProcessGuid\n\
+      WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n    AND h.EventID\
+      \ = 1\n    AND LOWER(h.CommandLine) LIKE \"%rar.exe%\""
+    covered_techniques:
+    - T1560.001
+    reference_ttp: TTP-0017-6053-5026
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6053-5295
+  tactic: TA0010
+  technique: T1041
+  procedure: O arquivo é exfiltrado pela conexão C2 existente.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6053-5447
+  detection_rules: []
+- ttp_id: TTP-0017-6053-5447
+  tactic: TA0005
+  technique: T1070.004
+  procedure: O invasor exclui vários arquivos associados a esse acesso.
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain: []
+  detection_rules:
+  - rule_id: DTR-0017-6107-5368
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a exclusão de arquivos via 'cmd.exe', executado a partir
+      de `python.exe`, cuja origem remonta a `services.exe`.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29 j\nINNER JOIN\
+      \ (\n    SELECT h.ProcessGuid\n    FROM apt29 h\n    INNER JOIN (\n        SELECT\
+      \ f.ProcessGuid\n        FROM apt29 f\n        INNER JOIN (\n          SELECT\
+      \ d.ProcessGuid\n          FROM apt29 d\n          INNER JOIN (\n          \
+      \    SELECT b.ProcessGuid\n              FROM apt29 b\n              INNER JOIN\
+      \ (\n                SELECT ProcessGuid\n                FROM apt29\n      \
+      \          WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n      \
+      \              AND EventID = 1\n                    AND ParentImage LIKE '%services.exe'\n\
+      \              ) a\n              ON b.ParentProcessGuid = a.ProcessGuid\n \
+      \             WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\n   \
+      \             AND Image LIKE '%python.exe'\n          ) c\n          ON d.ParentProcessGuid\
+      \ = c.ProcessGuid\n          WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n              AND EventID = 1\n        ) e\n        ON f.ParentProcessGuid\
+      \ = e.ProcessGuid\n        WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n          AND EventID = 1\n          AND Image LIKE '%cmd.exe'\n    ) g\n\
+      \    ON h.ParentProcessGuid = g.ProcessGuid\n    WHERE Channel = \"Microsoft-Windows-Sysmon/Operational\"\
+      \n        AND h.EventID = 1\n) i\nON j.ProcessGuid = i.ProcessGuid\nWHERE j.Channel\
+      \ = \"Microsoft-Windows-Sysmon/Operational\"\n    AND j.EventID = 23"
+    covered_techniques:
+    - T1070.004
+    reference_ttp: TTP-0017-6053-5447
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6053-5618
+  tactic: TA0002
+  technique: T1569.002
+  procedure: A vítima original é reiniciada e o usuário legítimo faz login, acionando
+    os mecanismos de persistência previamente estabelecidos, dentre eles a execução
+    do serviço criado "javamtsup".
+  secondary_techniques: []
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-5407
+  detection_rules:
+  - rule_id: DTR-0017-6107-5740
+    creation_date: '2025-10-21'
+    update_date: '2025-10-23'
+    description: Detecta a criação do processo javamtsup.exe cujo processo pai é services.exe.
+    platforms:
+    - Windows
+    sources:
+    - Sysmon
+    language: SparkSQL
+    query: "SELECT `@timestamp`,UtcTime,EventTime,Message\nFROM apt29\nWHERE Channel\
+      \ = \"Microsoft-Windows-Sysmon/Operational\"\n  AND EventID = 1\n  AND ParentImage\
+      \ LIKE '%services.exe'\n  AND Image LIKE '%javamtsup.exe'"
+    covered_techniques:
+    - T1569.002
+    reference_ttp: TTP-0017-6053-5618
+    notes: []
+    validation:
+      status: validated
+      update_date: '2025-10-22'
+      dataset: https://github.com/OTRF/detection-hackathon-apt29/raw/refs/heads/master/datasets/day1/apt29_evals_day1_manual.zip
+      references:
+      - REF-0017-3103-4789
+      - REF-0017-6044-5046
+      notes: []
+- ttp_id: TTP-0017-6053-5786
+  tactic: TA0003
+  technique: T1547.002
+  procedure: A vítima original é reiniciada e o usuário legítimo faz login, acionando
+    os mecanismos de persistência previamente estabelecidos, dentre eles a execução
+    o payload na pasta Inicialização do Windows, que executa um payload subsequente
+    usando um token roubado.
+  secondary_techniques:
+  - T1134.002
+  related_ttps: []
+  references:
+  - REF-0017-3068-5073
+  notes: []
+  ttp_chain:
+  - TTP-0017-6046-5407
+  detection_rules: []
+related_threats: []
+notes:
+- Cenário proposto pela MITRE Engenuity ATT&CK Evaluations (ver referência REF-0017-3068-4751).
+- 'TTP inicial: TTP-0017-3068-5003'

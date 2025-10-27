@@ -1,13 +1,13 @@
 title: Mosquito Win32 Backdoor
 threat_id: THR-0017-2739-5252
 creation_date: '2024-09-26'
-update_date: '2025-02-06'
+update_date: '2025-10-17'
 type: Malware
 domain: Enterprise
 platforms:
 - Windows
-description: 'Mosquito is a Win32 backdoor that has been used by Turla. Mosquito is
-  made up of three parts: the installer, the launcher, and the backdoor.'
+description: 'Mosquito is a Win32 backdoor used by the Turla group. It is composed
+  of three parts: the installer, the launcher, and the backdoor.'
 references:
 - ref_id: REF-0017-2739-5256
   type: Report
@@ -326,7 +326,7 @@ TTPs:
   references:
   - REF-0017-2739-5256
   notes:
-  - Pages 20,21. C&C server communications and backdoor commands. Commander (main
+  - Pages 20-21. C&C server communications and backdoor commands. Commander (main
     backdoor)
   ttp_chain:
   - TTP-0017-2770-1458
@@ -446,8 +446,7 @@ TTPs:
 
     If there is .dll or .exe in the filename, run it using LoadLibrary or CreateProcess.'
   secondary_techniques: []
-  related_ttps:
-  - TTP-0017-2770-5684
+  related_ttps: []
   references:
   - REF-0017-2739-5256
   notes:
